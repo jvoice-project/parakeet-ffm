@@ -1,0 +1,39 @@
+This content is produced and maintained by the jVoice project.
+
+* Project home: https://github.com/jvoice-project
+
+== Declared Project Licenses
+
+This program and the accompanying materials are made available under the terms
+of the Apache License, Version 2.0 which is available at
+https://www.apache.org/licenses/LICENSE-2.0.
+
+== Source Code
+
+https://github.com/jvoice-project/parakeet4j
+
+== Third-party Content
+
+parakeet.cpp
+* License: MIT License
+* Project: https://github.com/mudler/parakeet.cpp
+* Source: https://github.com/mudler/parakeet.cpp
+
+ggml
+* License: MIT License
+* Project: https://github.com/ggml-org/ggml
+* Source: https://github.com/ggml-org/ggml
+
+ced.cpp
+* License: MIT License
+* Project: https://github.com/localai-org/ced.cpp
+* Source: https://github.com/localai-org/ced.cpp
+
+voice-detect.cpp
+* License: MIT License
+* Project: https://github.com/localai-org/voice-detect.cpp
+* Source: https://github.com/localai-org/voice-detect.cpp
+
+dr_wav
+* License: Public Domain (Unlicense) / MIT-0
+* Source: https://github.com/mackron/dr_libs

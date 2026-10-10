@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>io.github.jvoice-project</groupId>
+  <artifactId>parakeet4j</artifactId>
+  <version>0.6.1-SNAPSHOT</version>
+  <name>parakeet4j</name>
+  <description>A Foreign Function &amp; Memory (FFM) wrapper for parakeet.cpp</description>
+  <url>https://github.com/jvoice-project/parakeet4j</url>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <id>florian-h05</id>
+      <name>Florian Hotze</name>
+      <email>dev@florianhotze.com</email>
+      <organizationUrl>https://github.com/florian-h05</organizationUrl>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:git://github.com/jvoice-project/parakeet4j.git</connection>
+    <developerConnection>scm:git:git://github.com/jvoice-project/parakeet4j.git</developerConnection>
+    <tag>HEAD</tag>
+    <url>https://github.com/jvoice-project/parakeet4j</url>
+  </scm>
+
+  <properties>
+    <java.version>21</java.version>
+    <maven.compiler.release>${java.version}</maven.compiler.release>
+    <maven.compiler.source>${java.version}</maven.compiler.source>
+    <maven.compiler.target>${java.version}</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <gson.version>2.14.0</gson.version>
+    <!-- test configuration: -->
+    <test.audio.name>speech.wav</test.audio.name>
+    <test.audio.url>https://raw.githubusercontent.com/mudler/parakeet.cpp/v0.6.1/tests/fixtures/speech.wav</test.audio.url>
+    <test.expected.text>Well, I don't wish to see it any more, observed Phoebe, turning away her eyes. It is certainly very like the old portrait.</test.expected.text>
+    <test.model.name>tdt_ctc-110m-q8_0.gguf</test.model.name>
+    <test.model.url>https://huggingface.co/mudler/parakeet-cpp-gguf/resolve/main</test.model.url>
+    <test.output.dir>${project.build.directory}/test-output</test.output.dir>
+    <test.resources.dir>${project.build.directory}/test-resources</test.resources.dir>
+    <test.stream.model.name>realtime_eou_120m-v1-q8_0.gguf</test.stream.model.name>
+    <test.vad.model.name>silero-vad-f16.gguf</test.vad.model.name>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>${gson.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>5.10.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.1</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Antrun Plugin to download models and test audio for integration tests -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.2.0</version>
+        <executions>
+          <execution>
+            <id>download-test-data</id>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <phase>generate-test-resources</phase>
+            <configuration>
+              <target>
+                <mkdir dir="${test.resources.dir}"/>
+                <get dest="${test.resources.dir}/${test.model.name}" skipexisting="true" src="${test.model.url}/${test.model.name}"/>
+                <get dest="${test.resources.dir}/${test.stream.model.name}" skipexisting="true" src="${test.model.url}/${test.stream.model.name}"/>
+                <get dest="${test.resources.dir}/${test.vad.model.name}" skipexisting="true" src="${test.model.url}/${test.vad.model.name}"/>
+                <get dest="${test.resources.dir}/${test.audio.name}" skipexisting="true" src="${test.audio.url}"/>
+                <delete dir="${test.output.dir}"/>
+                <mkdir dir="${test.output.dir}"/>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- Compiler Plugin -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <release>${java.version}</release>
+          <compilerArgs>
+            <arg>--enable-preview</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+      <!-- Surefire Plugin to configure env for tests -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.6</version>
+        <configuration>
+          <argLine>--enable-preview --enable-native-access=ALL-UNNAMED</argLine>
+          <forkCount>1</forkCount>
+          <reuseForks>true</reuseForks>
+          <environmentVariables>
+            <LC_NUMERIC>C</LC_NUMERIC>
+            <LC_ALL>C.UTF-8</LC_ALL>
+            <PARAKEET_MODEL>${test.resources.dir}/${test.model.name}</PARAKEET_MODEL>
+            <PARAKEET_STREAM_MODEL>${test.resources.dir}/${test.stream.model.name}</PARAKEET_STREAM_MODEL>
+            <PARAKEET_VAD_MODEL>${test.resources.dir}/${test.vad.model.name}</PARAKEET_VAD_MODEL>
+            <TEST_AUDIO>${test.resources.dir}/${test.audio.name}</TEST_AUDIO>
+            <EXPECTED_TEXT>${test.expected.text}</EXPECTED_TEXT>
+            <OUTPUT_DIR>${test.output.dir}</OUTPUT_DIR>
+          </environmentVariables>
+        </configuration>
+      </plugin>
+      <!-- Source Plugin to attach sources as JAR -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>3.4.0</version>
+        <executions>
+          <execution>
+            <id>attach-source</id>
+            <goals>
+              <goal>jar-no-fork</goal>
+            </goals>
+            <phase>compile</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- JavaDoc Plugin to attach JavaDoc as JAR -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.12.0</version>
+        <configuration>
+          <doclint>all,-missing</doclint>
+          <additionalOptions>
+            <additionalOption>--enable-preview</additionalOption>
+          </additionalOptions>
+        </configuration>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- Enforcer Plugin -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>3.6.3</version>
+        <executions>
+          <execution>
+            <id>enforce-java</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireJavaVersion>
+                  <version>${java.version}</version>
+                </requireJavaVersion>
+                <requireMavenVersion>
+                  <version>3.9.0</version>
+                </requireMavenVersion>
+              </rules>
+              <failFast>true</failFast>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- Release Plugin -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-release-plugin</artifactId>
+        <version>3.3.1</version>
+        <configuration>
+          <pushChanges>false</pushChanges>
+          <tagNameFormat>v@{project.version}</tagNameFormat>
+          <preparationGoals>clean spotless:apply verify</preparationGoals>
+          <completionGoals>spotless:apply</completionGoals>
+        </configuration>
+      </plugin>
+      <!-- Spotless Plugin -->
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>3.10.4</version>
+        <configuration>
+          <formats>
+            <format>
+              <includes>
+                <include>.gitattributes</include>
+                <include>.gitignore</include>
+              </includes>
+              <trimTrailingWhitespace/>
+              <endWithNewline/>
+              <indent>
+                <tabs>true</tabs>
+                <spacesPerTab>4</spacesPerTab>
+              </indent>
+            </format>
+          </formats>
+          <java>
+            <googleJavaFormat>
+              <version>1.25.2</version>
+              <style>AOSP</style>
+              <reflowLongStrings>true</reflowLongStrings>
+              <formatJavadoc>true</formatJavadoc>
+            </googleJavaFormat>
+
+            <importOrder>
+              <wildcardsLast>true</wildcardsLast>
+              <order>\#io.github.jvoiceproject,io.github.jvoiceproject,java|javax|jakarta,\#</order>
+              <!-- you can use an empty string for all the imports you didn't specify explicitly, '|' to join group without blank line, and '\#` prefix for static imports. -->
+            </importOrder>
+          </java>
+
+          <pom>
+            <sortPom>
+              <expandEmptyElements>false</expandEmptyElements>
+              <indentAttribute>schemaLocation</indentAttribute>
+              <predefinedSortOrder>recommended_2008_06</predefinedSortOrder>
+              <sortDependencyExclusions/>
+              <sortDependencyManagement/>
+            </sortPom>
+          </pom>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>validate</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- License Plugin -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>2.7.1</version>
+        <configuration>
+          <inceptionYear>2026</inceptionYear>
+          <licenseName>apache_v2</licenseName>
+          <organizationName>jvoice-project</organizationName>
+          <projectName>parakeet4j</projectName>
+          <copyrightOwners>Contributors to parakeet4j</copyrightOwners>
+          <addJavaLicenseAfterPackage>false</addJavaLicenseAfterPackage>
+          <useJavaNoReformatCommentStartTag>false</useJavaNoReformatCommentStartTag>
+          <trimHeaderLine>true</trimHeaderLine>
+          <failOnMissingHeader>true</failOnMissingHeader>
+          <failOnNotUptodateHeader>true</failOnNotUptodateHeader>
+
+          <roots>
+            <root>src/main/java</root>
+            <root>src/test/java</root>
+          </roots>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check-file-header</goal>
+            </goals>
+            <phase>validate</phase>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>ci-cd</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>3.2.8</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+                <phase>verify</phase>
+                <configuration>
+                  <gpgArguments>
+                    <arg>--pinentry-mode</arg>
+                    <arg>loopback</arg>
+                  </gpgArguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <version>0.11.0</version>
+            <extensions>true</extensions>
+            <configuration>
+              <publishingServerId>central</publishingServerId>
+              <autoPublish>true</autoPublish>
+              <waitUntil>validated</waitUntil>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

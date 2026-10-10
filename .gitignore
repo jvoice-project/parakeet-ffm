@@ -1,0 +1,14 @@
+# IDEs
+.vscode
+.idea/
+*.iml
+
+# Java build artefacts
+target/
+# Native build artefacts
+build/
+src/main/resources/linux-*
+src/main/resources/darwin-*
+src/main/resources/win32-*
+
+.DS_Store
