@@ -1,0 +1,3 @@
+[submodule "src/main/native/parakeet"]
+	path = src/main/native/parakeet
+	url = https://github.com/mudler/parakeet.cpp.git
