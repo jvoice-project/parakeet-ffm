@@ -52,8 +52,10 @@ public final class Json {
         public void write(JsonWriter out, Boolean value) throws IOException {
             if (value == null) {
                 out.nullValue();
+            } else if (value) {
+                out.value(1);
             } else {
-                out.value(value);
+                out.value(0);
             }
         }
 
