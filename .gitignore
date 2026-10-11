@@ -8,7 +8,7 @@ target/
 # Native build artefacts
 build/
 src/main/resources/linux-*
-src/main/resources/darwin-*
-src/main/resources/win32-*
+src/main/resources/macos-*
+src/main/resources/windows-*
 
 .DS_Store
