@@ -57,6 +57,9 @@ public final class NativeLibraryLoader {
     }
 
     public static void setInstance(ParakeetBinding binding) {
+        if (binding != null) {
+            validateAbiVersion(binding, "custom binding");
+        }
         synchronized (NativeLibraryLoader.class) {
             instance = binding;
         }
@@ -66,7 +69,11 @@ public final class NativeLibraryLoader {
         Path libraryPath = locateLibrary();
         try {
             SymbolLookup lookup = SymbolLookup.libraryLookup(libraryPath, Arena.global());
-            return new FfmParakeetBinding(lookup);
+            ParakeetBinding binding = new FfmParakeetBinding(lookup);
+            validateAbiVersion(binding, libraryPath);
+            return binding;
+        } catch (ParakeetException pe) {
+            throw pe;
         } catch (Throwable t) {
             throw new ParakeetException(
                     "Failed to load native parakeet library from '"
@@ -74,6 +81,24 @@ public final class NativeLibraryLoader {
                             + "': "
                             + t.getMessage(),
                     t);
+        }
+    }
+
+    public static void validateAbiVersion(ParakeetBinding binding, Object source) {
+        int actualAbi;
+        try {
+            actualAbi = binding.parakeet_capi_abi_version();
+        } catch (Throwable t) {
+            throw new ParakeetException(
+                    "Failed to query parakeet ABI version from '" + source + "': " + t.getMessage(),
+                    t);
+        }
+        if (actualAbi != ParakeetBinding.EXPECTED_ABI_VERSION) {
+            throw new ParakeetException(
+                    String.format(
+                            "Incompatible parakeet native library ABI version from '%s': expected"
+                                    + " %d, got %d",
+                            source, ParakeetBinding.EXPECTED_ABI_VERSION, actualAbi));
         }
     }
 

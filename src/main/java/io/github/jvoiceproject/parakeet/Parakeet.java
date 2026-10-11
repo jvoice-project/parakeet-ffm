@@ -50,6 +50,9 @@ public final class Parakeet {
         return NativeLibraryLoader.getInstance().parakeet_version();
     }
 
+    /** Expected C-API ABI version of the native parakeet library. */
+    public static final int EXPECTED_ABI_VERSION = ParakeetBinding.EXPECTED_ABI_VERSION;
+
     /**
      * Returns the C-API ABI version number.
      *

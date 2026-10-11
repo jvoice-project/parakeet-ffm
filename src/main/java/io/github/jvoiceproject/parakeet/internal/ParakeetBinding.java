@@ -30,6 +30,9 @@ import java.lang.foreign.MemorySegment;
  */
 public interface ParakeetBinding {
 
+    /** Expected C-API ABI version supported by this binding. */
+    int EXPECTED_ABI_VERSION = 10;
+
     /**
      * ABI version of this header/implementation. Bumped on any breaking change to the function
      * signatures or semantics.
