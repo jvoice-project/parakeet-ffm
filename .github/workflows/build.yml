@@ -203,8 +203,10 @@ jobs:
           # Also explicitly set the native library path just in case.
           COMMON_OPTS="-B -DforkCount=0 -Ddebug.piper.jni=true"
 
-          # Specific check for macOS Intel on ARM runner
-          if [[ "${{ runner.os }}" == "macOS" && "${{ matrix.arch }}" == "x86_64" ]]; then
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            echo "Running unit, native loading, and VAD integration tests on Windows (skipping heavy transcribe tests)"
+            ./mvnw $COMMON_OPTS -DexcludedGroups=transcribe test
+          elif [[ "${{ runner.os }}" == "macOS" && "${{ matrix.arch }}" == "x86_64" ]]; then
             echo "Running tests via Rosetta for x86_64"
             arch -x86_64 ./mvnw $COMMON_OPTS test
           else
