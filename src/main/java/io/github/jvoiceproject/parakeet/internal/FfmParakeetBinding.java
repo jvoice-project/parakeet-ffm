@@ -461,7 +461,7 @@ public final class FfmParakeetBinding implements ParakeetBinding {
     }
 
     @Override
-    public String parakeet_capi_last_error(MemorySegment ctx) {
+    public synchronized String parakeet_capi_last_error(MemorySegment ctx) {
         try {
             MemorySegment ptr = (MemorySegment) mh_last_error.invokeExact(ctx);
             return readStaticString(ptr);
@@ -471,7 +471,7 @@ public final class FfmParakeetBinding implements ParakeetBinding {
     }
 
     @Override
-    public String parakeet_capi_load_error() {
+    public synchronized String parakeet_capi_load_error() {
         try {
             MemorySegment ptr = (MemorySegment) mh_load_error.invokeExact();
             return readStaticString(ptr);
