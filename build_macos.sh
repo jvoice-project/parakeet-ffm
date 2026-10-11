@@ -5,7 +5,7 @@ AARCH=${1:-$(uname -m)}
 TARGET_VERSION=15
 
 case "$AARCH" in
-  x86_64|amd64)
+  x86_64|amd64|x86-64)
     AARCH=x86_64
     FFM_ARCH=x86-64
     ;;

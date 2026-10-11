@@ -3,10 +3,10 @@ set -xe
 
 # Use TARGETARCH if provided (e.g. from Docker)
 # Otherwise, try to detect it using uname -m
-AARCH=${TARGETARCH:-$(uname -m)}
+AARCH=${1:-${TARGETARCH:-$(uname -m)}}
 
 case $AARCH in
-    x86_64|amd64)
+    x86_64|amd64|x86-64)
         FFM_ARCH="x86-64" ;;
     aarch64|arm64)
         FFM_ARCH="aarch64" ;;
