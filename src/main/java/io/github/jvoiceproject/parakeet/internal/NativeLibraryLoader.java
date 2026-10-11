@@ -166,7 +166,7 @@ public final class NativeLibraryLoader {
         }
 
         String archSuffix;
-        if (arch.equals("x86_64") || arch.equals("amd64")) {
+        if (arch.equals("x86_64") || arch.equals("amd64") || arch.equals("x86-64")) {
             archSuffix = "x86-64";
         } else if (arch.equals("aarch64") || arch.equals("arm64")) {
             archSuffix = "aarch64";
