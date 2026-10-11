@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.26)
+cmake_minimum_required(VERSION 3.18)
 project(parakeet4-ffm C CXX)
 include(ExternalProject)
 
