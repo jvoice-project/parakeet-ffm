@@ -239,15 +239,17 @@ public final class ParakeetModel implements AutoCloseable {
         if (sampleRate <= 0) {
             throw new IllegalArgumentException("sampleRate must be positive: " + sampleRate);
         }
-        if (pcmClips.isEmpty()) {
-            return List.of();
-        }
         TranscribeOptions opts = options != null ? options : TranscribeOptions.DEFAULT;
 
+        List<float[]> clips = List.copyOf(pcmClips);
+        if (clips.isEmpty()) {
+            return List.of();
+        }
+
         int totalSamples = 0;
-        int[] sampleCounts = new int[pcmClips.size()];
-        for (int i = 0; i < pcmClips.size(); i++) {
-            float[] clip = pcmClips.get(i);
+        int[] sampleCounts = new int[clips.size()];
+        for (int i = 0; i < clips.size(); i++) {
+            float[] clip = clips.get(i);
             Objects.requireNonNull(clip, "pcm clip " + i + " cannot be null");
             sampleCounts[i] = clip.length;
             totalSamples += clip.length;
@@ -255,12 +257,13 @@ public final class ParakeetModel implements AutoCloseable {
 
         float[] pcmConcat = new float[totalSamples];
         int offset = 0;
-        for (float[] clip : pcmClips) {
+        for (float[] clip : clips) {
             System.arraycopy(clip, 0, pcmConcat, offset, clip.length);
             offset += clip.length;
         }
 
-        String[] outTexts = new String[pcmClips.size()];
+        String[] outTexts = new String[clips.size()];
+        List<String> result = new ArrayList<>(clips.size());
 
         rwLock.readLock().lock();
         try {
@@ -270,7 +273,7 @@ public final class ParakeetModel implements AutoCloseable {
                             ctx,
                             pcmConcat,
                             sampleCounts,
-                            pcmClips.size(),
+                            clips.size(),
                             sampleRate,
                             opts.getDecoder().getValue(),
                             opts.getLanguage(),
@@ -280,7 +283,6 @@ public final class ParakeetModel implements AutoCloseable {
                         "Batch transcription failed: " + lib.parakeet_capi_last_error(ctx));
             }
 
-            List<String> result = new ArrayList<>(pcmClips.size());
             for (String t : outTexts) {
                 result.add(t != null ? t : "");
             }
@@ -304,16 +306,17 @@ public final class ParakeetModel implements AutoCloseable {
         if (sampleRate <= 0) {
             throw new IllegalArgumentException("sampleRate must be positive: " + sampleRate);
         }
+        TranscribeOptions opts = options != null ? options : TranscribeOptions.DEFAULT;
+
         List<float[]> clips = List.copyOf(pcmClips);
         if (clips.isEmpty()) {
             return List.of();
         }
-        TranscribeOptions opts = options != null ? options : TranscribeOptions.DEFAULT;
 
         int totalSamples = 0;
-        int[] sampleCounts = new int[pcmClips.size()];
-        for (int i = 0; i < pcmClips.size(); i++) {
-            float[] clip = pcmClips.get(i);
+        int[] sampleCounts = new int[clips.size()];
+        for (int i = 0; i < clips.size(); i++) {
+            float[] clip = clips.get(i);
             Objects.requireNonNull(clip, "pcm clip " + i + " cannot be null");
             sampleCounts[i] = clip.length;
             totalSamples += clip.length;
@@ -321,7 +324,7 @@ public final class ParakeetModel implements AutoCloseable {
 
         float[] pcmConcat = new float[totalSamples];
         int offset = 0;
-        for (float[] clip : pcmClips) {
+        for (float[] clip : clips) {
             System.arraycopy(clip, 0, pcmConcat, offset, clip.length);
             offset += clip.length;
         }
