@@ -173,6 +173,14 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
+      - name: Cache test models
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/parakeet-ffm-test-resources
+          key: ${{ runner.os }}-parakeet-models-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-parakeet-models-
       - name: Setup Java
         uses: actions/setup-java@v6.0.1
         with:
