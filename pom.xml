@@ -4,11 +4,11 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>io.github.jvoice-project</groupId>
-  <artifactId>parakeet4j</artifactId>
+  <artifactId>parakeet-ffm</artifactId>
   <version>0.6.1-SNAPSHOT</version>
-  <name>parakeet4j</name>
+  <name>parakeet-ffm</name>
   <description>A Foreign Function &amp; Memory (FFM) wrapper for parakeet.cpp</description>
-  <url>https://github.com/jvoice-project/parakeet4j</url>
+  <url>https://github.com/jvoice-project/parakeet-ffm</url>
 
   <licenses>
     <license>
@@ -27,10 +27,10 @@
   </developers>
 
   <scm>
-    <connection>scm:git:git://github.com/jvoice-project/parakeet4j.git</connection>
-    <developerConnection>scm:git:git://github.com/jvoice-project/parakeet4j.git</developerConnection>
+    <connection>scm:git:git://github.com/jvoice-project/parakeet-ffm.git</connection>
+    <developerConnection>scm:git:git://github.com/jvoice-project/parakeet-ffm.git</developerConnection>
     <tag>HEAD</tag>
-    <url>https://github.com/jvoice-project/parakeet4j</url>
+    <url>https://github.com/jvoice-project/parakeet-ffm</url>
   </scm>
 
   <properties>
@@ -268,8 +268,8 @@
           <inceptionYear>2026</inceptionYear>
           <licenseName>apache_v2</licenseName>
           <organizationName>jvoice-project</organizationName>
-          <projectName>parakeet4j</projectName>
-          <copyrightOwners>Contributors to parakeet4j</copyrightOwners>
+          <projectName>parakeet-ffm</projectName>
+          <copyrightOwners>Contributors to parakeet-ffm</copyrightOwners>
           <addJavaLicenseAfterPackage>false</addJavaLicenseAfterPackage>
           <useJavaNoReformatCommentStartTag>false</useJavaNoReformatCommentStartTag>
           <trimHeaderLine>true</trimHeaderLine>

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.26)
-project(parakeet4j C CXX)
+project(parakeet4-ffm C CXX)
 include(ExternalProject)
 
 set(PARAKEET_SUBMODULE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/parakeet")
