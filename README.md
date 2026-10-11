@@ -197,7 +197,7 @@ git submodule update --init --recursive
 
 ### Building the Native Library Locally
 
-Compile `libparakeet` and install it into `src/main/resources/`:
+Compile `libparakeet` and install it into `src/main/resources/native/`:
 
 - **Linux:** Run `./build_linux.sh`
 - **macOS:** Run `./build_macos.sh`

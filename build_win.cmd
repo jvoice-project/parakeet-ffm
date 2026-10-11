@@ -3,7 +3,7 @@ if "%AARCH%"=="" set "AARCH=x86-64"
 if "%AARCH%"=="x86_64" set "AARCH=x86-64"
 if "%AARCH%"=="amd64" set "AARCH=x86-64"
 if "%AARCH%"=="arm64" set "AARCH=aarch64"
-set "TARGET_DIR=src\main\resources\windows-%AARCH%"
+set "TARGET_DIR=src\main\resources\native\windows-%AARCH%"
 
 if not exist "src\main\native\parakeet\CMakeLists.txt" (
     git submodule update --init --recursive

@@ -77,7 +77,7 @@ jobs:
           else
             ./build_macos.sh ${{ matrix.arch }}
           fi
-          mv src/main/resources/${{ matrix.target }}/*.dylib dist/lib/
+          mv src/main/resources/native/${{ matrix.target }}/*.dylib dist/lib/
       # --- Windows Build Logic ---
       - name: Build (Windows)
         if: runner.os == 'Windows'
@@ -87,7 +87,7 @@ jobs:
           .\build_win.cmd
           if (!(Test-Path dist)) { mkdir dist }
           if (!(Test-Path dist\lib)) { mkdir dist\lib }
-          move-item src\main\resources\${{ matrix.target }}\*.dll .\dist\lib\
+          move-item src\main\resources\native\${{ matrix.target }}\*.dll .\dist\lib\
       # --- Upload Artifacts ---
       - name: Upload Library
         uses: actions/upload-artifact@v7
@@ -120,17 +120,17 @@ jobs:
       - name: Setup resources
         run: |
           mkdir -p \
-            src/main/resources/linux-x86-64 \
-            src/main/resources/linux-aarch64 \
-            src/main/resources/macos-x86-64 \
-            src/main/resources/macos-aarch64 \
-            src/main/resources/windows-x86-64
+            src/main/resources/native/linux-x86-64 \
+            src/main/resources/native/linux-aarch64 \
+            src/main/resources/native/macos-x86-64 \
+            src/main/resources/native/macos-aarch64 \
+            src/main/resources/native/windows-x86-64
 
-          cp downloaded-artifacts/linux-x86-64/* src/main/resources/linux-x86-64/
-          cp downloaded-artifacts/linux-aarch64/* src/main/resources/linux-aarch64/
-          cp downloaded-artifacts/macos-x86-64/* src/main/resources/macos-x86-64/
-          cp downloaded-artifacts/macos-aarch64/* src/main/resources/macos-aarch64/
-          cp downloaded-artifacts/windows-x86-64/* src/main/resources/windows-x86-64/
+          cp downloaded-artifacts/linux-x86-64/* src/main/resources/native/linux-x86-64/
+          cp downloaded-artifacts/linux-aarch64/* src/main/resources/native/linux-aarch64/
+          cp downloaded-artifacts/macos-x86-64/* src/main/resources/native/macos-x86-64/
+          cp downloaded-artifacts/macos-aarch64/* src/main/resources/native/macos-aarch64/
+          cp downloaded-artifacts/windows-x86-64/* src/main/resources/native/windows-x86-64/
       - name: Bundle resources as tarball
         run: |
           mkdir -p dist

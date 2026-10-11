@@ -36,7 +36,7 @@ import java.util.Locale;
  * @author Florian Hotze - Initial contribution
  */
 public final class NativeLibraryLoader {
-    private static final String PLATFORM_RESOURCE_PATH_PATTERN = "/%s-%s/%sparakeet%s";
+    private static final String PLATFORM_RESOURCE_PATH_PATTERN = "/native/%s-%s/%sparakeet%s";
 
     private static volatile ParakeetBinding instance;
 

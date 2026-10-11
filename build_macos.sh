@@ -19,7 +19,7 @@ case "$AARCH" in
     ;;
 esac
 
-TARGET_DIR="src/main/resources/macos-$FFM_ARCH"
+TARGET_DIR="src/main/resources/native/macos-$FFM_ARCH"
 
 if [ ! -f "src/main/native/parakeet/CMakeLists.txt" ]; then
     echo "Initializing submodules..."

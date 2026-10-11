@@ -15,7 +15,7 @@ case $AARCH in
         exit 1 ;;
 esac
 
-TARGET_DIR="src/main/resources/linux-$FFM_ARCH"
+TARGET_DIR="src/main/resources/native/linux-$FFM_ARCH"
 
 if [ ! -f "src/main/native/parakeet/CMakeLists.txt" ]; then
     echo "Initializing submodules..."
