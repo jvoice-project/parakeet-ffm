@@ -217,7 +217,7 @@ By default, `parakeet-ffm` checks `parakeet.library.path` (or `jna.library.path`
 To test or benchmark against a custom build (e.g., compiled with `-march=native` or CUDA):
 
 ```shell
-java --enable-preview --enable-native-access=ALL-UNNAMED -Dparakeet.library.path="/path/to/custom/parakeet/build" -jar ...
+java --enable-preview --enable-native-access=io.github.jvoiceproject.parakeet -Dparakeet.library.path="/path/to/custom/parakeet/build" -jar ...
 ```
 
 ### Java Build & Tests
