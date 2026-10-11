@@ -119,9 +119,9 @@ public interface ParakeetBinding {
      *
      * @param ctx The native context pointer.
      * @param backends Number of backend instances to pool.
-     * @param threadsEach Compute threads per backend (<= 0 computes dynamically based on CLI
+     * @param threadsEach Compute threads per backend (&lt;= 0 computes dynamically based on CLI
      *     budget).
-     * @return The effective number of backends (1 if <= 1, or 1 if using a GPU). 0 on failure.
+     * @return The effective number of backends (1 if &lt;= 1, or 1 if using a GPU). 0 on failure.
      */
     int parakeet_capi_set_concurrency(MemorySegment ctx, int backends, int threadsEach);
 

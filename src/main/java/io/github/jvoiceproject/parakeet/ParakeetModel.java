@@ -88,7 +88,7 @@ public final class ParakeetModel implements AutoCloseable {
      * teams spin, and oversubscribing slows everything.
      *
      * @param backends Number of parallel compute backends.
-     * @param threadsEach Compute threads per backend (<code><= 0</code>} for default budget).
+     * @param threadsEach Compute threads per backend (&lt;= 0) for default budget).
      * @return Effective number of backends configured.
      * @throws IllegalStateException if this model is closed.
      */

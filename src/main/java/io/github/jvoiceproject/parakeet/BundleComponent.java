@@ -27,7 +27,7 @@ import com.google.gson.annotations.SerializedName;
  * @see <a href="https://github.com/mudler/parakeet.cpp/blob/v0.6.1/docs/bundle.md">parakeet.cpp:
  *     Bundle GGUF</a>
  * @param name Component name.
- * @param kind Component kind (e.g., <code>asr</code, <code>vad</code>, <code>diar</code>).
+ * @param kind Component kind (e.g., <code>asr</code>, <code>vad</code>, <code>diar</code>).
  * @param license Component license.
  * @param licenseUrl Component license URL.
  * @param source Upstream source repository or checkpoint.
