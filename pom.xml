@@ -40,6 +40,8 @@
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <gson.version>2.14.0</gson.version>
+    <skipDownloadTestData>${skipTests}</skipDownloadTestData>
+    <skipTests>false</skipTests>
     <!-- test configuration: -->
     <test.audio.name>speech.wav</test.audio.name>
     <test.audio.url>https://raw.githubusercontent.com/mudler/parakeet.cpp/v0.6.1/tests/fixtures/speech.wav</test.audio.url>
@@ -87,6 +89,7 @@
             </goals>
             <phase>generate-test-resources</phase>
             <configuration>
+              <skip>${skipDownloadTestData}</skip>
               <target>
                 <mkdir dir="${test.resources.dir}"/>
                 <echo message="Checking and downloading test models in ${test.resources.dir} (skipping if already present)..."/>
