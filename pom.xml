@@ -47,7 +47,7 @@
     <test.model.name>tdt_ctc-110m-q8_0.gguf</test.model.name>
     <test.model.url>https://huggingface.co/mudler/parakeet-cpp-gguf/resolve/main</test.model.url>
     <test.output.dir>${project.build.directory}/test-output</test.output.dir>
-    <test.resources.dir>${project.build.directory}/test-resources</test.resources.dir>
+    <test.resources.dir>${user.home}/.cache/parakeet-ffm-test-resources</test.resources.dir>
     <test.stream.model.name>realtime_eou_120m-v1-q8_0.gguf</test.stream.model.name>
     <test.vad.model.name>silero-vad-f16.gguf</test.vad.model.name>
   </properties>
@@ -89,6 +89,7 @@
             <configuration>
               <target>
                 <mkdir dir="${test.resources.dir}"/>
+                <echo message="Checking and downloading test models in ${test.resources.dir} (skipping if already present)..."/>
                 <get dest="${test.resources.dir}/${test.model.name}" skipexisting="true" src="${test.model.url}/${test.model.name}"/>
                 <get dest="${test.resources.dir}/${test.stream.model.name}" skipexisting="true" src="${test.model.url}/${test.stream.model.name}"/>
                 <get dest="${test.resources.dir}/${test.vad.model.name}" skipexisting="true" src="${test.model.url}/${test.vad.model.name}"/>
