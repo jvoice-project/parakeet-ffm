@@ -156,10 +156,10 @@ public final class NativeLibraryLoader {
             osPrefix = "linux";
             libPrefix = "lib";
         } else if (os.contains("mac") || os.contains("darwin")) {
-            osPrefix = "darwin";
+            osPrefix = "macos";
             libPrefix = "lib";
         } else if (os.contains("win")) {
-            osPrefix = "win32";
+            osPrefix = "windows";
             libPrefix = "";
         } else {
             throw new ParakeetException("Unsupported operating system: " + os);
