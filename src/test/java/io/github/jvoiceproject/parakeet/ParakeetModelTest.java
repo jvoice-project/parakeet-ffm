@@ -1,0 +1,305 @@
+/*
+ * #%L
+ * parakeet4j
+ * %%
+ * Copyright (C) 2026 Contributors to parakeet4j
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
+package io.github.jvoiceproject.parakeet;
+
+import io.github.jvoiceproject.parakeet.transcribe.TranscribeOptions;
+import io.github.jvoiceproject.parakeet.transcribe.TranscribeStream;
+import io.github.jvoiceproject.parakeet.transcribe.TranscribeStreamResult;
+import io.github.jvoiceproject.parakeet.transcribe.Transcription;
+import io.github.jvoiceproject.parakeet.vad.VadOptions;
+import io.github.jvoiceproject.parakeet.vad.VadResult;
+import io.github.jvoiceproject.parakeet.vad.VadStream;
+import io.github.jvoiceproject.parakeet.vad.VadStreamResult;
+
+import java.io.IOException;
+import java.lang.foreign.MemorySegment;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+/**
+ * Unit tests for {@link ParakeetModel} and streams using {@link FakeParakeetBinding}.
+ *
+ * @author Florian Hotze - Initial contribution
+ */
+public class ParakeetModelTest {
+
+    private FakeParakeetBinding fake;
+    private ParakeetModel model;
+
+    @BeforeEach
+    void setUp() {
+        fake = new FakeParakeetBinding();
+        model = new ParakeetModel(fake, MemorySegment.ofAddress(0x1000));
+    }
+
+    @Test
+    void modelKindMapping() {
+        fake.modelKind = 1;
+        assertEquals(ModelKind.ASR, model.kind());
+
+        fake.modelKind = 5;
+        assertEquals(ModelKind.VAD, model.kind());
+
+        fake.modelKind = 99;
+        assertEquals(ModelKind.NONE, model.kind());
+    }
+
+    @Test
+    void setConcurrency() {
+        assertEquals(4, model.setConcurrency(4, 2));
+    }
+
+    @Test
+    void transcribePcmSuccess() {
+        fake.transcriptToReturn = "Hello world";
+        TranscribeOptions options =
+                TranscribeOptions.builder()
+                        .decoder(TranscribeOptions.Decoder.CTC)
+                        .language("en")
+                        .build();
+
+        float[] pcm = new float[] {0.1f, -0.1f};
+        String result = model.transcribe(pcm, 16000, options);
+
+        assertEquals("Hello world", result);
+        assertEquals(TranscribeOptions.Decoder.CTC.getValue(), fake.lastDecoder);
+        assertEquals("en", fake.lastTargetLang);
+        assertEquals(16000, fake.lastSampleRate);
+    }
+
+    @Test
+    void transcribeWavSuccess(@TempDir Path tempDir) throws IOException {
+        Path wav = tempDir.resolve("test.wav");
+        Files.write(wav, new byte[] {1, 2, 3});
+
+        fake.transcriptToReturn = "Wav transcript";
+        String result = model.transcribe(wav);
+
+        assertEquals("Wav transcript", result);
+    }
+
+    @Test
+    void transcribeWavMissingFileThrows() {
+        Path wav = Path.of("/nonexistent/file.wav");
+        assertThrows(ParakeetException.class, () -> model.transcribe(wav));
+    }
+
+    @Test
+    void transcribeWithTimestampsWav(@TempDir Path tempDir) throws IOException {
+        Path wav = tempDir.resolve("test.wav");
+        Files.write(wav, new byte[] {1, 2, 3});
+
+        fake.jsonToReturn =
+                """
+                {
+                  "text": "Hello",
+                  "frame_sec": 0.08,
+                  "words": [{"w": "Hello", "start": 0.1, "end": 0.5, "conf": 0.95}],
+                  "tokens": [{"id": 10, "t": 0.1, "conf": 0.95}]
+                }
+                """;
+
+        Transcription t = model.transcribeWithTimestamps(wav, TranscribeOptions.DEFAULT);
+
+        assertNotNull(t);
+        assertEquals("Hello", t.text());
+        assertEquals(0.08, t.frameSec());
+        assertEquals(1, t.words().size());
+        assertEquals("Hello", t.words().getFirst().text());
+        assertEquals(1, t.tokens().size());
+        assertEquals(10, t.tokens().getFirst().id());
+    }
+
+    @Test
+    void transcribeBatchSuccess() {
+        fake.transcriptToReturn = "Clip";
+        List<float[]> clips = List.of(new float[] {0.1f, 0.2f}, new float[] {-0.1f});
+
+        List<String> results = model.batchTranscribe(clips, 16000, TranscribeOptions.DEFAULT);
+
+        assertEquals(2, results.size());
+        assertEquals("Clip", results.get(0));
+        assertEquals("Clip", results.get(1));
+    }
+
+    @Test
+    void transcribeBatchWithTimestamps() {
+        fake.jsonToReturn =
+                """
+                [
+                  {"text": "Clip 0", "frame_sec": 0.08, "words": [], "tokens": []},
+                  {"text": "Clip 1", "frame_sec": 0.08, "words": [], "tokens": []}
+                ]
+                """;
+
+        List<float[]> clips = List.of(new float[] {0.1f}, new float[] {0.2f});
+        List<Transcription> results =
+                model.batchTranscribeWithTimestamps(clips, 16000, TranscribeOptions.DEFAULT);
+
+        assertEquals(2, results.size());
+        assertEquals("Clip 0", results.get(0).text());
+        assertEquals("Clip 1", results.get(1).text());
+    }
+
+    @Test
+    void streamingSessionLifecycle() {
+        fake.jsonToReturn =
+                """
+                {
+                  "text": "streamed",
+                  "eou": 1,
+                  "eob": 0,
+                  "frame_sec": 0.08,
+                  "events": [{"type": "eou", "frame": 5, "t": 0.4}],
+                  "words": [{"w": "streamed", "start": 0.1, "end": 0.4, "conf": 0.99}]
+                }
+                """;
+
+        TranscribeStream stream = model.startTranscribeStream("en");
+        assertNotNull(stream);
+        assertEquals("en", fake.lastTargetLang);
+        assertFalse(stream.isClosed());
+
+        TranscribeStreamResult feedRes = stream.feed(new float[] {0.1f, 0.2f});
+        assertEquals("streamed", feedRes.text());
+        assertTrue(feedRes.eou());
+        assertFalse(feedRes.eob());
+        assertEquals(1, feedRes.events().size());
+        assertEquals("eou", feedRes.events().get(0).type());
+        assertEquals(1, feedRes.words().size());
+
+        TranscribeStreamResult finRes = stream.finish();
+        assertEquals("streamed", finRes.text());
+
+        stream.close();
+        assertTrue(stream.isClosed());
+        assertEquals(1, fake.freeStreamCount);
+
+        // Subsequent call throws
+        assertThrows(IllegalStateException.class, () -> stream.feed(new float[] {0.1f}));
+    }
+
+    @Test
+    void vadOfflineAndStreamingLifecycle(@TempDir Path tempDir) throws IOException {
+        Path wav = tempDir.resolve("speech.wav");
+        Files.write(wav, new byte[] {1, 2, 3});
+
+        fake.jsonToReturn =
+                """
+                {
+                  "mode": "speech",
+                  "duration": 5.0,
+                  "frame_sec": 0.08,
+                  "backend": "cpu",
+                  "segments": [{"start": 0.5, "end": 2.5}],
+                  "probabilities": [0.1, 0.9]
+                }
+                """;
+
+        VadOptions options = VadOptions.builder().threshold(0.6).minPause(0.3).build();
+        VadResult vadRes = model.detectSpeech(wav, options);
+
+        assertEquals("speech", vadRes.mode());
+        assertEquals(5.0, vadRes.duration());
+        assertEquals(1, vadRes.segments().size());
+        assertEquals(0.5, vadRes.segments().getFirst().start());
+        assertEquals(2.5, vadRes.segments().getFirst().end());
+        assertEquals(2, vadRes.probabilities().size());
+
+        // Streaming VAD
+        fake.jsonToReturn =
+                """
+                {
+                  "frame_sec": 0.032,
+                  "first_frame": 10,
+                  "events": [{"type": "start", "time": 0.32}],
+                  "probabilities": [0.8]
+                }
+                """;
+
+        VadStream vadStream = model.startVadStream(16000, options);
+        assertNotNull(vadStream);
+        assertFalse(vadStream.isClosed());
+
+        VadStreamResult feedRes = vadStream.feed(new float[] {0.1f}, false);
+        assertEquals(0.032, feedRes.frameSec());
+        assertEquals(10, feedRes.firstFrame());
+        assertEquals(1, feedRes.events().size());
+        assertEquals("start", feedRes.events().getFirst().type());
+
+        vadStream.reset();
+        vadStream.close();
+        assertTrue(vadStream.isClosed());
+        assertEquals(1, fake.freeVadStreamCount);
+    }
+
+    @Test
+    void closeModelClosesActiveStreams() {
+        TranscribeStream s1 = model.startTranscribeStream();
+        VadStream v1 = model.startVadStream(16000, VadOptions.DEFAULT);
+
+        assertFalse(s1.isClosed());
+        assertFalse(v1.isClosed());
+        assertFalse(model.isClosed());
+
+        model.close();
+
+        assertTrue(model.isClosed());
+        assertTrue(s1.isClosed());
+        assertTrue(v1.isClosed());
+        assertEquals(1, fake.freeStreamCount);
+        assertEquals(1, fake.freeVadStreamCount);
+        assertEquals(1, fake.freeCtxCount);
+
+        // Repeated close is idempotent
+        model.close();
+        assertEquals(1, fake.freeCtxCount);
+
+        // Calls on closed model throw
+        assertThrows(
+                IllegalStateException.class,
+                () -> model.transcribe(new float[] {0.1f}, 16000, TranscribeOptions.DEFAULT));
+    }
+
+    @Test
+    void nativeFailureThrowsParakeetException() {
+        fake.shouldFail = true;
+        fake.lastError = "Model error occurred";
+
+        ParakeetException ex =
+                assertThrows(
+                        ParakeetException.class,
+                        () ->
+                                model.transcribe(
+                                        new float[] {0.1f}, 16000, TranscribeOptions.DEFAULT));
+        assertTrue(ex.getMessage().contains("Model error occurred"));
+    }
+}

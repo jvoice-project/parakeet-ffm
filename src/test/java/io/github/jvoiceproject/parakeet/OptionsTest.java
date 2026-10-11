@@ -72,7 +72,7 @@ public class OptionsTest {
         assertTrue(json.contains("\"threshold\":0.7"));
         assertTrue(json.contains("\"min_pause\":0.25"));
         assertTrue(json.contains("\"mode\":\"speech\""));
-        assertTrue(json.contains("\"probabilities\":true"));
+        assertTrue(json.contains("\"probabilities\":1"));
         assertFalse(json.contains("min_speech"), "Unset keys should not be included");
     }
 
