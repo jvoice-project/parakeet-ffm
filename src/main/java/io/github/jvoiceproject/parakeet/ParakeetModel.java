@@ -39,6 +39,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.google.gson.reflect.TypeToken;
 
@@ -52,6 +53,7 @@ public final class ParakeetModel implements AutoCloseable {
     private final ParakeetBinding lib;
     private final MemorySegment ctx;
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
 
     private final Set<TranscribeStream> openTranscribeStreams =
             Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -74,8 +76,13 @@ public final class ParakeetModel implements AutoCloseable {
      * @throws IllegalStateException if this model is closed.
      */
     public ModelKind kind() {
-        checkOpen();
-        return ModelKind.fromValue(lib.parakeet_capi_model_kind(ctx));
+        rwLock.readLock().lock();
+        try {
+            checkOpen();
+            return ModelKind.fromValue(lib.parakeet_capi_model_kind(ctx));
+        } finally {
+            rwLock.readLock().unlock();
+        }
     }
 
     /**
@@ -93,8 +100,13 @@ public final class ParakeetModel implements AutoCloseable {
      * @throws IllegalStateException if this model is closed.
      */
     public int setConcurrency(int backends, int threadsEach) {
-        checkOpen();
-        return lib.parakeet_capi_set_concurrency(ctx, backends, threadsEach);
+        rwLock.readLock().lock();
+        try {
+            checkOpen();
+            return lib.parakeet_capi_set_concurrency(ctx, backends, threadsEach);
+        } finally {
+            rwLock.readLock().unlock();
+        }
     }
 
     /**
@@ -117,21 +129,26 @@ public final class ParakeetModel implements AutoCloseable {
      * @throws ParakeetException if transcription fails.
      */
     public String transcribe(Path wav, TranscribeOptions options) {
-        checkOpen();
         validateWavFile(wav);
         TranscribeOptions opts = options != null ? options : TranscribeOptions.DEFAULT;
 
-        String text =
-                lib.parakeet_capi_transcribe_path_lang(
-                        ctx,
-                        wav.toAbsolutePath().toString(),
-                        opts.getDecoder().getValue(),
-                        opts.getLanguage());
-        if (text == null) {
-            throw new ParakeetException(
-                    "Failed to transcribe " + wav + ": " + lib.parakeet_capi_last_error(ctx));
+        rwLock.readLock().lock();
+        try {
+            checkOpen();
+            String text =
+                    lib.parakeet_capi_transcribe_path_lang(
+                            ctx,
+                            wav.toAbsolutePath().toString(),
+                            opts.getDecoder().getValue(),
+                            opts.getLanguage());
+            if (text == null) {
+                throw new ParakeetException(
+                        "Failed to transcribe " + wav + ": " + lib.parakeet_capi_last_error(ctx));
+            }
+            return text;
+        } finally {
+            rwLock.readLock().unlock();
         }
-        return text;
     }
 
     /**
@@ -154,26 +171,31 @@ public final class ParakeetModel implements AutoCloseable {
      * @return Transcript text.
      */
     public String transcribe(float[] pcm, int sampleRate, TranscribeOptions options) {
-        checkOpen();
         Objects.requireNonNull(pcm, "pcm samples cannot be null");
         if (sampleRate <= 0) {
             throw new IllegalArgumentException("sampleRate must be positive: " + sampleRate);
         }
         TranscribeOptions opts = options != null ? options : TranscribeOptions.DEFAULT;
 
-        String text =
-                lib.parakeet_capi_transcribe_pcm_lang(
-                        ctx,
-                        pcm,
-                        pcm.length,
-                        sampleRate,
-                        opts.getDecoder().getValue(),
-                        opts.getLanguage());
-        if (text == null) {
-            throw new ParakeetException(
-                    "Failed to transcribe PCM audio: " + lib.parakeet_capi_last_error(ctx));
+        rwLock.readLock().lock();
+        try {
+            checkOpen();
+            String text =
+                    lib.parakeet_capi_transcribe_pcm_lang(
+                            ctx,
+                            pcm,
+                            pcm.length,
+                            sampleRate,
+                            opts.getDecoder().getValue(),
+                            opts.getLanguage());
+            if (text == null) {
+                throw new ParakeetException(
+                        "Failed to transcribe PCM audio: " + lib.parakeet_capi_last_error(ctx));
+            }
+            return text;
+        } finally {
+            rwLock.readLock().unlock();
         }
-        return text;
     }
 
     /**
@@ -184,18 +206,23 @@ public final class ParakeetModel implements AutoCloseable {
      * @return {@link Transcription} object with word and token details.
      */
     public Transcription transcribeWithTimestamps(Path wav, TranscribeOptions options) {
-        checkOpen();
         validateWavFile(wav);
         TranscribeOptions opts = options != null ? options : TranscribeOptions.DEFAULT;
 
-        String json =
-                lib.parakeet_capi_transcribe_path_json(
-                        ctx, wav.toAbsolutePath().toString(), opts.getDecoder().getValue());
-        if (json == null) {
-            throw new ParakeetException(
-                    "Failed to transcribe " + wav + ": " + lib.parakeet_capi_last_error(ctx));
+        rwLock.readLock().lock();
+        try {
+            checkOpen();
+            String json =
+                    lib.parakeet_capi_transcribe_path_json(
+                            ctx, wav.toAbsolutePath().toString(), opts.getDecoder().getValue());
+            if (json == null) {
+                throw new ParakeetException(
+                        "Failed to transcribe " + wav + ": " + lib.parakeet_capi_last_error(ctx));
+            }
+            return Json.GSON.fromJson(json, Transcription.class);
+        } finally {
+            rwLock.readLock().unlock();
         }
-        return Json.GSON.fromJson(json, Transcription.class);
     }
 
     /**
@@ -208,7 +235,6 @@ public final class ParakeetModel implements AutoCloseable {
      */
     public List<String> batchTranscribe(
             List<float[]> pcmClips, int sampleRate, TranscribeOptions options) {
-        checkOpen();
         Objects.requireNonNull(pcmClips, "pcmClips cannot be null");
         if (sampleRate <= 0) {
             throw new IllegalArgumentException("sampleRate must be positive: " + sampleRate);
@@ -235,26 +261,33 @@ public final class ParakeetModel implements AutoCloseable {
         }
 
         String[] outTexts = new String[pcmClips.size()];
-        int rc =
-                lib.parakeet_capi_transcribe_pcm_batch_lang(
-                        ctx,
-                        pcmConcat,
-                        sampleCounts,
-                        pcmClips.size(),
-                        sampleRate,
-                        opts.getDecoder().getValue(),
-                        opts.getLanguage(),
-                        outTexts);
-        if (rc != 0) {
-            throw new ParakeetException(
-                    "Batch transcription failed: " + lib.parakeet_capi_last_error(ctx));
-        }
 
-        List<String> result = new ArrayList<>(pcmClips.size());
-        for (String t : outTexts) {
-            result.add(t != null ? t : "");
+        rwLock.readLock().lock();
+        try {
+            checkOpen();
+            int rc =
+                    lib.parakeet_capi_transcribe_pcm_batch_lang(
+                            ctx,
+                            pcmConcat,
+                            sampleCounts,
+                            pcmClips.size(),
+                            sampleRate,
+                            opts.getDecoder().getValue(),
+                            opts.getLanguage(),
+                            outTexts);
+            if (rc != 0) {
+                throw new ParakeetException(
+                        "Batch transcription failed: " + lib.parakeet_capi_last_error(ctx));
+            }
+
+            List<String> result = new ArrayList<>(pcmClips.size());
+            for (String t : outTexts) {
+                result.add(t != null ? t : "");
+            }
+            return result;
+        } finally {
+            rwLock.readLock().unlock();
         }
-        return result;
     }
 
     /**
@@ -267,13 +300,13 @@ public final class ParakeetModel implements AutoCloseable {
      */
     public List<Transcription> batchTranscribeWithTimestamps(
             List<float[]> pcmClips, int sampleRate, TranscribeOptions options) {
-        checkOpen();
         Objects.requireNonNull(pcmClips, "pcmClips cannot be null");
-        if (pcmClips.isEmpty()) {
-            return List.of();
-        }
         if (sampleRate <= 0) {
             throw new IllegalArgumentException("sampleRate must be positive: " + sampleRate);
+        }
+        List<float[]> clips = List.copyOf(pcmClips);
+        if (clips.isEmpty()) {
+            return List.of();
         }
         TranscribeOptions opts = options != null ? options : TranscribeOptions.DEFAULT;
 
@@ -293,22 +326,28 @@ public final class ParakeetModel implements AutoCloseable {
             offset += clip.length;
         }
 
-        String json =
-                lib.parakeet_capi_transcribe_pcm_batch_json_lang(
-                        ctx,
-                        pcmConcat,
-                        sampleCounts,
-                        pcmClips.size(),
-                        sampleRate,
-                        opts.getDecoder().getValue(),
-                        opts.getLanguage());
-        if (json == null) {
-            throw new ParakeetException(
-                    "Batch transcription failed: " + lib.parakeet_capi_last_error(ctx));
+        rwLock.readLock().lock();
+        try {
+            checkOpen();
+            String json =
+                    lib.parakeet_capi_transcribe_pcm_batch_json_lang(
+                            ctx,
+                            pcmConcat,
+                            sampleCounts,
+                            clips.size(),
+                            sampleRate,
+                            opts.getDecoder().getValue(),
+                            opts.getLanguage());
+            if (json == null) {
+                throw new ParakeetException(
+                        "Batch transcription failed: " + lib.parakeet_capi_last_error(ctx));
+            }
+            List<Transcription> list =
+                    Json.GSON.fromJson(json, new TypeToken<List<Transcription>>() {}.getType());
+            return list != null ? list : List.of();
+        } finally {
+            rwLock.readLock().unlock();
         }
-        List<Transcription> list =
-                Json.GSON.fromJson(json, new TypeToken<List<Transcription>>() {}.getType());
-        return list != null ? list : List.of();
     }
 
     /**
@@ -327,19 +366,24 @@ public final class ParakeetModel implements AutoCloseable {
      * @return Active {@link TranscribeStream}.
      */
     public TranscribeStream startTranscribeStream(String targetLang) {
-        checkOpen();
-        MemorySegment streamHandle = lib.parakeet_capi_stream_begin_lang(ctx, targetLang);
-        if (streamHandle == null
-                || streamHandle.equals(MemorySegment.NULL)
-                || streamHandle.address() == 0) {
-            throw new ParakeetException(
-                    "Failed to start streaming session: " + lib.parakeet_capi_last_error(ctx));
-        }
+        rwLock.readLock().lock();
+        try {
+            checkOpen();
+            MemorySegment streamHandle = lib.parakeet_capi_stream_begin_lang(ctx, targetLang);
+            if (streamHandle == null
+                    || streamHandle.equals(MemorySegment.NULL)
+                    || streamHandle.address() == 0) {
+                throw new ParakeetException(
+                        "Failed to start streaming session: " + lib.parakeet_capi_last_error(ctx));
+            }
 
-        TranscribeStream stream =
-                new TranscribeStream(lib, streamHandle, openTranscribeStreams::remove);
-        openTranscribeStreams.add(stream);
-        return stream;
+            TranscribeStream stream =
+                    new TranscribeStream(lib, streamHandle, openTranscribeStreams::remove);
+            openTranscribeStreams.add(stream);
+            return stream;
+        } finally {
+            rwLock.readLock().unlock();
+        }
     }
 
     /**
@@ -350,23 +394,28 @@ public final class ParakeetModel implements AutoCloseable {
      * @return {@link VadResult} containing speech regions.
      */
     public VadResult detectSpeech(Path wav, VadOptions options) {
-        checkOpen();
         validateWavFile(wav);
         VadOptions opts =
                 (options != null ? options : VadOptions.DEFAULT)
                         .toBuilder().mode(VadOptions.Mode.SPEECH).build();
 
-        String json =
-                lib.parakeet_capi_vad_path_json(
-                        ctx, wav.toAbsolutePath().toString(), opts.toJson());
-        if (json == null) {
-            throw new ParakeetException(
-                    "VAD speech detection failed for "
-                            + wav
-                            + ": "
-                            + lib.parakeet_capi_last_error(ctx));
+        rwLock.readLock().lock();
+        try {
+            checkOpen();
+            String json =
+                    lib.parakeet_capi_vad_path_json(
+                            ctx, wav.toAbsolutePath().toString(), opts.toJson());
+            if (json == null) {
+                throw new ParakeetException(
+                        "VAD speech detection failed for "
+                                + wav
+                                + ": "
+                                + lib.parakeet_capi_last_error(ctx));
+            }
+            return Json.GSON.fromJson(json, VadResult.class);
+        } finally {
+            rwLock.readLock().unlock();
         }
-        return Json.GSON.fromJson(json, VadResult.class);
     }
 
     /**
@@ -378,7 +427,6 @@ public final class ParakeetModel implements AutoCloseable {
      * @return {@link VadResult} containing speech regions.
      */
     public VadResult detectSpeech(float[] pcm, int sampleRate, VadOptions options) {
-        checkOpen();
         Objects.requireNonNull(pcm, "pcm samples cannot be null");
         if (sampleRate <= 0) {
             throw new IllegalArgumentException("sampleRate must be positive: " + sampleRate);
@@ -387,13 +435,19 @@ public final class ParakeetModel implements AutoCloseable {
                 (options != null ? options : VadOptions.DEFAULT)
                         .toBuilder().mode(VadOptions.Mode.SPEECH).build();
 
-        String json =
-                lib.parakeet_capi_vad_pcm_json(ctx, pcm, pcm.length, sampleRate, opts.toJson());
-        if (json == null) {
-            throw new ParakeetException(
-                    "VAD speech detection failed: " + lib.parakeet_capi_last_error(ctx));
+        rwLock.readLock().lock();
+        try {
+            checkOpen();
+            String json =
+                    lib.parakeet_capi_vad_pcm_json(ctx, pcm, pcm.length, sampleRate, opts.toJson());
+            if (json == null) {
+                throw new ParakeetException(
+                        "VAD speech detection failed: " + lib.parakeet_capi_last_error(ctx));
+            }
+            return Json.GSON.fromJson(json, VadResult.class);
+        } finally {
+            rwLock.readLock().unlock();
         }
-        return Json.GSON.fromJson(json, VadResult.class);
     }
 
     /**
@@ -406,23 +460,29 @@ public final class ParakeetModel implements AutoCloseable {
      * @return {@link VadResult} containing segmented regions.
      */
     public VadResult segmentSpeech(Path wav, VadOptions options) {
-        checkOpen();
         validateWavFile(wav);
         VadOptions opts =
                 (options != null ? options : VadOptions.DEFAULT)
                         .toBuilder().mode(VadOptions.Mode.SEGMENTS).build();
 
-        String json =
-                lib.parakeet_capi_vad_path_json(
-                        ctx, wav.toAbsolutePath().toString(), opts.toJson());
-        if (json == null) {
-            throw new ParakeetException(
-                    "VAD speech segmentation failed for "
-                            + wav
-                            + ": "
-                            + lib.parakeet_capi_last_error(ctx));
+        rwLock.readLock().lock();
+        try {
+            checkOpen();
+
+            String json =
+                    lib.parakeet_capi_vad_path_json(
+                            ctx, wav.toAbsolutePath().toString(), opts.toJson());
+            if (json == null) {
+                throw new ParakeetException(
+                        "VAD speech segmentation failed for "
+                                + wav
+                                + ": "
+                                + lib.parakeet_capi_last_error(ctx));
+            }
+            return Json.GSON.fromJson(json, VadResult.class);
+        } finally {
+            rwLock.readLock().unlock();
         }
-        return Json.GSON.fromJson(json, VadResult.class);
     }
 
     /**
@@ -434,7 +494,6 @@ public final class ParakeetModel implements AutoCloseable {
      * @return {@link VadResult} containing segmented regions.
      */
     public VadResult segmentSpeech(float[] pcm, int sampleRate, VadOptions options) {
-        checkOpen();
         Objects.requireNonNull(pcm, "pcm samples cannot be null");
         if (sampleRate <= 0) {
             throw new IllegalArgumentException("sampleRate must be positive: " + sampleRate);
@@ -443,13 +502,19 @@ public final class ParakeetModel implements AutoCloseable {
                 (options != null ? options : VadOptions.DEFAULT)
                         .toBuilder().mode(VadOptions.Mode.SEGMENTS).build();
 
-        String json =
-                lib.parakeet_capi_vad_pcm_json(ctx, pcm, pcm.length, sampleRate, opts.toJson());
-        if (json == null) {
-            throw new ParakeetException(
-                    "VAD speech segmentation failed: " + lib.parakeet_capi_last_error(ctx));
+        rwLock.readLock().lock();
+        try {
+            checkOpen();
+            String json =
+                    lib.parakeet_capi_vad_pcm_json(ctx, pcm, pcm.length, sampleRate, opts.toJson());
+            if (json == null) {
+                throw new ParakeetException(
+                        "VAD speech segmentation failed: " + lib.parakeet_capi_last_error(ctx));
+            }
+            return Json.GSON.fromJson(json, VadResult.class);
+        } finally {
+            rwLock.readLock().unlock();
         }
-        return Json.GSON.fromJson(json, VadResult.class);
     }
 
     /**
@@ -460,20 +525,26 @@ public final class ParakeetModel implements AutoCloseable {
      * @return Active {@link VadStream}.
      */
     public VadStream startVadStream(int sampleRate, VadOptions options) {
-        checkOpen();
         VadOptions opts = options != null ? options : VadOptions.DEFAULT;
-        MemorySegment vadStreamHandle =
-                lib.parakeet_capi_vad_stream_begin(ctx, sampleRate, opts.toJson());
-        if (vadStreamHandle == null
-                || vadStreamHandle.equals(MemorySegment.NULL)
-                || vadStreamHandle.address() == 0) {
-            throw new ParakeetException(
-                    "Failed to start VAD stream: " + lib.parakeet_capi_last_error(ctx));
-        }
 
-        VadStream stream = new VadStream(lib, vadStreamHandle, openVadStreams::remove);
-        openVadStreams.add(stream);
-        return stream;
+        rwLock.readLock().lock();
+        try {
+            checkOpen();
+            MemorySegment vadStreamHandle =
+                    lib.parakeet_capi_vad_stream_begin(ctx, sampleRate, opts.toJson());
+            if (vadStreamHandle == null
+                    || vadStreamHandle.equals(MemorySegment.NULL)
+                    || vadStreamHandle.address() == 0) {
+                throw new ParakeetException(
+                        "Failed to start VAD stream: " + lib.parakeet_capi_last_error(ctx));
+            }
+
+            VadStream stream = new VadStream(lib, vadStreamHandle, openVadStreams::remove);
+            openVadStreams.add(stream);
+            return stream;
+        } finally {
+            rwLock.readLock().unlock();
+        }
     }
 
     /**
@@ -515,40 +586,50 @@ public final class ParakeetModel implements AutoCloseable {
                 transcribeOptions != null ? transcribeOptions : TranscribeOptions.DEFAULT;
         VadOptions vOpts = vadOptions != null ? vadOptions : VadOptions.DEFAULT;
 
-        String json =
-                lib.parakeet_capi_transcribe_path_json_vad_with(
-                        ctx,
-                        vadModel.ctx(),
-                        wav.toAbsolutePath().toString(),
-                        tOpts.getDecoder().getValue(),
-                        vOpts.toJson());
-        if (json == null) {
-            throw new ParakeetException(
-                    "VAD-guided transcription failed: " + lib.parakeet_capi_last_error(ctx));
+        rwLock.readLock().lock();
+        try {
+            String json =
+                    lib.parakeet_capi_transcribe_path_json_vad_with(
+                            ctx,
+                            vadModel.ctx(),
+                            wav.toAbsolutePath().toString(),
+                            tOpts.getDecoder().getValue(),
+                            vOpts.toJson());
+            if (json == null) {
+                throw new ParakeetException(
+                        "VAD-guided transcription failed: " + lib.parakeet_capi_last_error(ctx));
+            }
+            return Json.GSON.fromJson(json, Transcription.class);
+        } finally {
+            rwLock.readLock().unlock();
         }
-        return Json.GSON.fromJson(json, Transcription.class);
     }
 
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {
-            for (TranscribeStream s : openTranscribeStreams) {
-                try {
-                    s.close();
-                } catch (Exception ignored) {
+            rwLock.writeLock().lock();
+            try {
+                for (TranscribeStream s : openTranscribeStreams) {
+                    try {
+                        s.close();
+                    } catch (Exception ignored) {
+                    }
                 }
-            }
-            openTranscribeStreams.clear();
+                openTranscribeStreams.clear();
 
-            for (VadStream vs : openVadStreams) {
-                try {
-                    vs.close();
-                } catch (Exception ignored) {
+                for (VadStream vs : openVadStreams) {
+                    try {
+                        vs.close();
+                    } catch (Exception ignored) {
+                    }
                 }
-            }
-            openVadStreams.clear();
+                openVadStreams.clear();
 
-            lib.parakeet_capi_free(ctx);
+                lib.parakeet_capi_free(ctx);
+            } finally {
+                rwLock.writeLock().unlock();
+            }
         }
     }
 
