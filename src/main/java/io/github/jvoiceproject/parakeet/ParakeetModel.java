@@ -551,6 +551,18 @@ public final class ParakeetModel implements AutoCloseable {
     }
 
     /**
+     * Transcribes audio using this model's integrated VAD head for segmentation with default ASR
+     * options.
+     *
+     * @param wav Path to WAV audio file.
+     * @param vadOptions VAD segmentation options.
+     * @return {@link Transcription} with segment-guided timestamps.
+     */
+    public Transcription transcribeWithVad(Path wav, VadOptions vadOptions) {
+        return transcribeWithVad(null, wav, TranscribeOptions.DEFAULT, vadOptions);
+    }
+
+    /**
      * Transcribes audio using this model's integrated VAD head for segmentation.
      *
      * @param wav Path to WAV audio file.
@@ -561,6 +573,20 @@ public final class ParakeetModel implements AutoCloseable {
     public Transcription transcribeWithVad(
             Path wav, TranscribeOptions transcribeOptions, VadOptions vadOptions) {
         return transcribeWithVad(null, wav, transcribeOptions, vadOptions);
+    }
+
+    /**
+     * Transcribes audio using a separate VAD model (e.g., Silero VAD) for segmentation with default
+     * ASR options.
+     *
+     * @param vadModel A model loaded with a VAD head or Silero VAD architecture.
+     * @param wav Path to WAV audio file.
+     * @param vadOptions VAD segmentation options.
+     * @return {@link Transcription} with segment-guided timestamps.
+     */
+    public Transcription transcribeWithVad(
+            ParakeetModel vadModel, Path wav, VadOptions vadOptions) {
+        return transcribeWithVad(vadModel, wav, TranscribeOptions.DEFAULT, vadOptions);
     }
 
     /**
