@@ -165,11 +165,10 @@
         <version>3.4.0</version>
         <executions>
           <execution>
-            <id>attach-source</id>
+            <id>attach-sources</id>
             <goals>
               <goal>jar-no-fork</goal>
             </goals>
-            <phase>compile</phase>
           </execution>
         </executions>
       </plugin>
