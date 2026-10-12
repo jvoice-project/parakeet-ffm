@@ -26,10 +26,14 @@ import io.github.jvoiceproject.parakeet.internal.ParakeetBinding;
 import java.lang.foreign.MemorySegment;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 /**
  * An incremental streaming session for Voice Activity Detection (powered by Silero VAD).
+ *
+ * <p>A stream maintains stateful incremental buffers and is intended to be fed sequentially. All
+ * operations are thread-safe and guarded against concurrent access and closing races.
  *
  * @author Florian Hotze - Initial contribution
  */
@@ -39,6 +43,7 @@ public final class VadStream implements AutoCloseable {
     private final MemorySegment vadStream;
     private final Consumer<VadStream> onClose;
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final ReentrantLock lock = new ReentrantLock();
 
     public VadStream(ParakeetBinding lib, MemorySegment vadStream, Consumer<VadStream> onClose) {
         this.lib = Objects.requireNonNull(lib, "lib cannot be null");
@@ -56,10 +61,17 @@ public final class VadStream implements AutoCloseable {
      * @throws ParakeetException if feeding fails.
      */
     public VadStreamResult feed(float[] pcm, boolean isLast) {
-        checkOpen();
-        Objects.requireNonNull(pcm, "pcm samples cannot be null");
-        String json =
-                lib.parakeet_capi_vad_stream_feed_json(vadStream, pcm, pcm.length, isLast ? 1 : 0);
+        String json;
+        lock.lock();
+        try {
+            checkOpen();
+            Objects.requireNonNull(pcm, "pcm samples cannot be null");
+            json =
+                    lib.parakeet_capi_vad_stream_feed_json(
+                            vadStream, pcm, pcm.length, isLast ? 1 : 0);
+        } finally {
+            lock.unlock();
+        }
         if (json == null) {
             throw new ParakeetException("VAD stream feed failed");
         }
@@ -73,21 +85,31 @@ public final class VadStream implements AutoCloseable {
      * @throws ParakeetException if reset fails.
      */
     public void reset() {
-        checkOpen();
-        int rc = lib.parakeet_capi_vad_stream_reset(vadStream);
-        if (rc != 0) {
-            throw new ParakeetException("Failed to reset VAD stream (code " + rc + ")");
+        lock.lock();
+        try {
+            checkOpen();
+            int rc = lib.parakeet_capi_vad_stream_reset(vadStream);
+            if (rc != 0) {
+                throw new ParakeetException("Failed to reset VAD stream (code " + rc + ")");
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
     @Override
     public void close() {
-        if (closed.compareAndSet(false, true)) {
-            try {
-                lib.parakeet_capi_vad_stream_free(vadStream);
-            } finally {
-                onClose.accept(this);
+        lock.lock();
+        try {
+            if (closed.compareAndSet(false, true)) {
+                try {
+                    lib.parakeet_capi_vad_stream_free(vadStream);
+                } finally {
+                    onClose.accept(this);
+                }
             }
+        } finally {
+            lock.unlock();
         }
     }
 

@@ -26,10 +26,14 @@ import io.github.jvoiceproject.parakeet.internal.ParakeetBinding;
 import java.lang.foreign.MemorySegment;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 /**
  * An incremental, cache-aware streaming speech recognition session.
+ *
+ * <p>A stream maintains stateful incremental buffers and is intended to be fed sequentially. All
+ * operations are thread-safe and guarded against concurrent access and closing races.
  *
  * @author Florian Hotze - Initial contribution
  */
@@ -39,6 +43,7 @@ public final class TranscribeStream implements AutoCloseable {
     private final MemorySegment stream;
     private final Consumer<TranscribeStream> onClose;
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final ReentrantLock lock = new ReentrantLock();
 
     public TranscribeStream(
             ParakeetBinding lib, MemorySegment stream, Consumer<TranscribeStream> onClose) {
@@ -57,9 +62,15 @@ public final class TranscribeStream implements AutoCloseable {
      * @throws ParakeetException if decoding fails.
      */
     public TranscribeStreamResult feed(float[] pcm) {
-        checkOpen();
-        Objects.requireNonNull(pcm, "pcm samples cannot be null");
-        String json = lib.parakeet_capi_stream_feed_json(stream, pcm, pcm.length);
+        String json;
+        lock.lock();
+        try {
+            checkOpen();
+            Objects.requireNonNull(pcm, "pcm samples cannot be null");
+            json = lib.parakeet_capi_stream_feed_json(stream, pcm, pcm.length);
+        } finally {
+            lock.unlock();
+        }
         if (json == null) {
             throw new ParakeetException("Streaming feed failed");
         }
@@ -74,8 +85,14 @@ public final class TranscribeStream implements AutoCloseable {
      * @throws ParakeetException if finalizing fails.
      */
     public TranscribeStreamResult finish() {
-        checkOpen();
-        String json = lib.parakeet_capi_stream_finalize_json(stream);
+        String json;
+        lock.lock();
+        try {
+            checkOpen();
+            json = lib.parakeet_capi_stream_finalize_json(stream);
+        } finally {
+            lock.unlock();
+        }
         if (json == null) {
             throw new ParakeetException("Streaming finalize failed");
         }
@@ -84,12 +101,17 @@ public final class TranscribeStream implements AutoCloseable {
 
     @Override
     public void close() {
-        if (closed.compareAndSet(false, true)) {
-            try {
-                lib.parakeet_capi_stream_free(stream);
-            } finally {
-                onClose.accept(this);
+        lock.lock();
+        try {
+            if (closed.compareAndSet(false, true)) {
+                try {
+                    lib.parakeet_capi_stream_free(stream);
+                } finally {
+                    onClose.accept(this);
+                }
             }
+        } finally {
+            lock.unlock();
         }
     }
 
