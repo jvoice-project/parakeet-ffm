@@ -49,6 +49,7 @@ public class FakeParakeetBinding implements ParakeetBinding {
     public int lastDecoder;
     public String lastOptionsJson;
     public int lastSampleRate;
+    public MemorySegment lastVadCtx;
 
     @Override
     public int parakeet_capi_abi_version() {
@@ -247,6 +248,7 @@ public class FakeParakeetBinding implements ParakeetBinding {
             String wavPath,
             int decoder,
             String vadOptsJson) {
+        lastVadCtx = vadCtx;
         lastDecoder = decoder;
         lastOptionsJson = vadOptsJson;
         if (shouldFail) {

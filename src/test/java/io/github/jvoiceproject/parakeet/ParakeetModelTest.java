@@ -32,7 +32,14 @@ import java.io.IOException;
 import java.lang.foreign.MemorySegment;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -301,5 +308,201 @@ public class ParakeetModelTest {
                                 model.transcribe(
                                         new float[] {0.1f}, 16000, TranscribeOptions.DEFAULT));
         assertTrue(ex.getMessage().contains("Model error occurred"));
+    }
+
+    @Test
+    void concurrentTranscribeAndClose() throws Exception {
+        fake.transcriptToReturn = "Concurrent";
+        int threadCount = 8;
+        int iterationsPerThread = 100;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount + 1);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        AtomicInteger successCount = new AtomicInteger();
+        AtomicInteger closedRejectionCount = new AtomicInteger();
+
+        try {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int i = 0; i < threadCount; i++) {
+                futures.add(
+                        executor.submit(
+                                () -> {
+                                    try {
+                                        startLatch.await();
+                                        for (int j = 0; j < iterationsPerThread; j++) {
+                                            try {
+                                                model.transcribe(
+                                                        new float[] {0.1f, 0.2f},
+                                                        16000,
+                                                        TranscribeOptions.DEFAULT);
+                                                successCount.incrementAndGet();
+                                            } catch (IllegalStateException e) {
+                                                closedRejectionCount.incrementAndGet();
+                                            }
+                                        }
+                                    } catch (InterruptedException e) {
+                                        Thread.currentThread().interrupt();
+                                    }
+                                }));
+            }
+
+            futures.add(
+                    executor.submit(
+                            () -> {
+                                try {
+                                    startLatch.await();
+                                    Thread.sleep(5);
+                                    model.close();
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                }
+                            }));
+
+            startLatch.countDown();
+            for (Future<?> f : futures) {
+                f.get(10, TimeUnit.SECONDS);
+            }
+
+            assertTrue(model.isClosed());
+            assertEquals(1, fake.freeCtxCount);
+            assertEquals(
+                    threadCount * iterationsPerThread,
+                    successCount.get() + closedRejectionCount.get());
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void concurrentTranscribeStreamFeedAndClose() throws Exception {
+        fake.jsonToReturn =
+                """
+                {
+                  "text": "streamed",
+                  "eou": 0,
+                  "eob": 0,
+                  "frame_sec": 0.08,
+                  "events": [],
+                  "words": []
+                }
+                """;
+
+        TranscribeStream stream = model.startTranscribeStream();
+        int feederThreads = 4;
+        ExecutorService executor = Executors.newFixedThreadPool(feederThreads + 1);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        AtomicInteger feedsCompleted = new AtomicInteger();
+        AtomicInteger streamClosedRejections = new AtomicInteger();
+
+        try {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int i = 0; i < feederThreads; i++) {
+                futures.add(
+                        executor.submit(
+                                () -> {
+                                    try {
+                                        startLatch.await();
+                                        for (int j = 0; j < 50; j++) {
+                                            try {
+                                                stream.feed(new float[] {0.1f});
+                                                feedsCompleted.incrementAndGet();
+                                            } catch (IllegalStateException e) {
+                                                streamClosedRejections.incrementAndGet();
+                                            }
+                                        }
+                                    } catch (InterruptedException e) {
+                                        Thread.currentThread().interrupt();
+                                    }
+                                }));
+            }
+
+            futures.add(
+                    executor.submit(
+                            () -> {
+                                try {
+                                    startLatch.await();
+                                    Thread.sleep(5);
+                                    stream.close();
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                }
+                            }));
+
+            startLatch.countDown();
+            for (Future<?> f : futures) {
+                f.get(10, TimeUnit.SECONDS);
+            }
+
+            assertTrue(stream.isClosed());
+            assertEquals(1, fake.freeStreamCount);
+            assertEquals(feederThreads * 50, feedsCompleted.get() + streamClosedRejections.get());
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void concurrentVadStreamFeedAndClose() throws Exception {
+        fake.jsonToReturn =
+                """
+                {
+                  "frame_sec": 0.032,
+                  "first_frame": 0,
+                  "events": [],
+                  "probabilities": [0.1]
+                }
+                """;
+
+        VadStream stream = model.startVadStream(16000, VadOptions.DEFAULT);
+        int feederThreads = 4;
+        ExecutorService executor = Executors.newFixedThreadPool(feederThreads + 1);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        AtomicInteger feedsCompleted = new AtomicInteger();
+        AtomicInteger streamClosedRejections = new AtomicInteger();
+
+        try {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int i = 0; i < feederThreads; i++) {
+                futures.add(
+                        executor.submit(
+                                () -> {
+                                    try {
+                                        startLatch.await();
+                                        for (int j = 0; j < 50; j++) {
+                                            try {
+                                                stream.feed(new float[] {0.1f}, false);
+                                                feedsCompleted.incrementAndGet();
+                                            } catch (IllegalStateException e) {
+                                                streamClosedRejections.incrementAndGet();
+                                            }
+                                        }
+                                    } catch (InterruptedException e) {
+                                        Thread.currentThread().interrupt();
+                                    }
+                                }));
+            }
+
+            futures.add(
+                    executor.submit(
+                            () -> {
+                                try {
+                                    startLatch.await();
+                                    Thread.sleep(5);
+                                    stream.close();
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                }
+                            }));
+
+            startLatch.countDown();
+            for (Future<?> f : futures) {
+                f.get(10, TimeUnit.SECONDS);
+            }
+
+            assertTrue(stream.isClosed());
+            assertEquals(1, fake.freeVadStreamCount);
+            assertEquals(feederThreads * 50, feedsCompleted.get() + streamClosedRejections.get());
+        } finally {
+            executor.shutdownNow();
+        }
     }
 }
