@@ -5,7 +5,7 @@
 
   <groupId>io.github.jvoice-project</groupId>
   <artifactId>parakeet-ffm</artifactId>
-  <version>0.6.1.0</version>
+  <version>0.6.1.1-SNAPSHOT</version>
   <name>parakeet-ffm</name>
   <description>A Foreign Function &amp; Memory (FFM) wrapper for parakeet.cpp</description>
   <url>https://github.com/jvoice-project/parakeet-ffm</url>
@@ -29,7 +29,7 @@
   <scm>
     <connection>scm:git:git://github.com/jvoice-project/parakeet-ffm.git</connection>
     <developerConnection>scm:git:git://github.com/jvoice-project/parakeet-ffm.git</developerConnection>
-    <tag>v0.6.1.0</tag>
+    <tag>HEAD</tag>
     <url>https://github.com/jvoice-project/parakeet-ffm</url>
   </scm>
 
