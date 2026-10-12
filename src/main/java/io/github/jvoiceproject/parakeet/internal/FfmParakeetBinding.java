@@ -53,8 +53,6 @@ public final class FfmParakeetBinding implements ParakeetBinding {
     private final MethodHandle mh_transcribe_path_lang;
     private final MethodHandle mh_transcribe_pcm_lang;
     private final MethodHandle mh_transcribe_path_json;
-    private final MethodHandle mh_transcribe_pcm_batch_lang;
-    private final MethodHandle mh_transcribe_pcm_batch_json_lang;
 
     private final MethodHandle mh_stream_begin_lang;
     private final MethodHandle mh_stream_feed_json;
@@ -178,35 +176,6 @@ public final class FfmParakeetBinding implements ParakeetBinding {
                                 ValueLayout.ADDRESS,
                                 ValueLayout.ADDRESS,
                                 ValueLayout.JAVA_INT));
-        mh_transcribe_pcm_batch_lang =
-                find(
-                        lookup,
-                        linker,
-                        "parakeet_capi_transcribe_pcm_batch_lang",
-                        FunctionDescriptor.of(
-                                ValueLayout.JAVA_INT,
-                                ValueLayout.ADDRESS,
-                                ValueLayout.ADDRESS,
-                                ValueLayout.ADDRESS,
-                                ValueLayout.JAVA_INT,
-                                ValueLayout.JAVA_INT,
-                                ValueLayout.JAVA_INT,
-                                ValueLayout.ADDRESS,
-                                ValueLayout.ADDRESS));
-        mh_transcribe_pcm_batch_json_lang =
-                find(
-                        lookup,
-                        linker,
-                        "parakeet_capi_transcribe_pcm_batch_json_lang",
-                        FunctionDescriptor.of(
-                                ValueLayout.ADDRESS,
-                                ValueLayout.ADDRESS,
-                                ValueLayout.ADDRESS,
-                                ValueLayout.ADDRESS,
-                                ValueLayout.JAVA_INT,
-                                ValueLayout.JAVA_INT,
-                                ValueLayout.JAVA_INT,
-                                ValueLayout.ADDRESS));
 
         mh_stream_begin_lang =
                 find(
@@ -543,101 +512,6 @@ public final class FfmParakeetBinding implements ParakeetBinding {
         } catch (Throwable t) {
             throw new ParakeetException(
                     "Failed to transcribe audio with timestamps from " + wavPath, t);
-        }
-    }
-
-    @Override
-    public int parakeet_capi_transcribe_pcm_batch_lang(
-            MemorySegment ctx,
-            float[] pcmConcat,
-            int[] sampleCounts,
-            int batchSize,
-            int sampleRate,
-            int decoder,
-            String targetLang,
-            String[] outTexts) {
-        try (Arena arena = Arena.ofConfined()) {
-            MemorySegment pcmSeg =
-                    pcmConcat != null
-                            ? arena.allocateArray(ValueLayout.JAVA_FLOAT, pcmConcat)
-                            : MemorySegment.NULL;
-            MemorySegment countsSeg =
-                    sampleCounts != null
-                            ? arena.allocateArray(ValueLayout.JAVA_INT, sampleCounts)
-                            : MemorySegment.NULL;
-            MemorySegment langSeg =
-                    targetLang != null ? arena.allocateUtf8String(targetLang) : MemorySegment.NULL;
-
-            MemorySegment clipPointers = arena.allocateArray(ValueLayout.ADDRESS, batchSize);
-            if (pcmConcat != null && sampleCounts != null) {
-                long offset = 0;
-                for (int i = 0; i < batchSize; i++) {
-                    clipPointers.setAtIndex(
-                            ValueLayout.ADDRESS,
-                            i,
-                            pcmSeg.asSlice(offset, (long) sampleCounts[i] * Float.BYTES));
-                    offset += (long) sampleCounts[i] * Float.BYTES;
-                }
-            }
-
-            MemorySegment outPointers = arena.allocateArray(ValueLayout.ADDRESS, batchSize);
-
-            int rc =
-                    (int)
-                            mh_transcribe_pcm_batch_lang.invokeExact(
-                                    ctx,
-                                    clipPointers,
-                                    countsSeg,
-                                    batchSize,
-                                    sampleRate,
-                                    decoder,
-                                    langSeg,
-                                    outPointers);
-            if (rc == 0 && outTexts != null) {
-                for (int i = 0; i < batchSize; i++) {
-                    MemorySegment ptr = outPointers.getAtIndex(ValueLayout.ADDRESS, i);
-                    outTexts[i] = readAndFreeString(ptr);
-                }
-            }
-            return rc;
-        } catch (Throwable t) {
-            throw new ParakeetException("Failed to transcribe PCM batch", t);
-        }
-    }
-
-    @Override
-    public String parakeet_capi_transcribe_pcm_batch_json_lang(
-            MemorySegment ctx,
-            float[] pcmConcat,
-            int[] sampleCounts,
-            int batchSize,
-            int sampleRate,
-            int decoder,
-            String targetLang) {
-        try (Arena arena = Arena.ofConfined()) {
-            MemorySegment pcmSeg =
-                    pcmConcat != null
-                            ? arena.allocateArray(ValueLayout.JAVA_FLOAT, pcmConcat)
-                            : MemorySegment.NULL;
-            MemorySegment countsSeg =
-                    sampleCounts != null
-                            ? arena.allocateArray(ValueLayout.JAVA_INT, sampleCounts)
-                            : MemorySegment.NULL;
-            MemorySegment langSeg =
-                    targetLang != null ? arena.allocateUtf8String(targetLang) : MemorySegment.NULL;
-            MemorySegment ptr =
-                    (MemorySegment)
-                            mh_transcribe_pcm_batch_json_lang.invokeExact(
-                                    ctx,
-                                    pcmSeg,
-                                    countsSeg,
-                                    batchSize,
-                                    sampleRate,
-                                    decoder,
-                                    langSeg);
-            return readAndFreeString(ptr);
-        } catch (Throwable t) {
-            throw new ParakeetException("Failed to transcribe PCM batch json", t);
         }
     }
 
