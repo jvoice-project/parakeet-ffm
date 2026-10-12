@@ -20,6 +20,7 @@
 package io.github.jvoiceproject.parakeet.transcribe;
 
 import io.github.jvoiceproject.parakeet.ParakeetException;
+import io.github.jvoiceproject.parakeet.internal.AudioConverter;
 import io.github.jvoiceproject.parakeet.internal.Json;
 import io.github.jvoiceproject.parakeet.internal.ParakeetBinding;
 
@@ -44,6 +45,7 @@ public final class TranscribeStream implements AutoCloseable {
     private final Consumer<TranscribeStream> onClose;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final ReentrantLock lock = new ReentrantLock();
+    private float[] floatBuffer;
 
     public TranscribeStream(
             ParakeetBinding lib, MemorySegment stream, Consumer<TranscribeStream> onClose) {
@@ -62,12 +64,41 @@ public final class TranscribeStream implements AutoCloseable {
      * @throws ParakeetException if decoding fails.
      */
     public TranscribeStreamResult feed(float[] pcm) {
+        Objects.requireNonNull(pcm, "pcm samples cannot be null");
         String json;
         lock.lock();
         try {
             checkOpen();
-            Objects.requireNonNull(pcm, "pcm samples cannot be null");
             json = lib.parakeet_capi_stream_feed_json(stream, pcm, pcm.length);
+        } finally {
+            lock.unlock();
+        }
+        if (json == null) {
+            throw new ParakeetException("Streaming feed failed");
+        }
+        return Json.GSON.fromJson(json, TranscribeStreamResult.class);
+    }
+
+    /**
+     * Feeds 16 kHz mono signed 16-bit PCM samples to the streaming decoder.
+     *
+     * @param pcm Signed 16-bit audio samples in range [-32768, 32767].
+     * @return {@link TranscribeStreamResult} containing partial text, timestamps, and turn-taking
+     *     events.
+     * @throws IllegalStateException if this stream is closed.
+     * @throws ParakeetException if decoding fails.
+     */
+    public TranscribeStreamResult feed(short[] pcm) {
+        Objects.requireNonNull(pcm, "pcm samples cannot be null");
+        String json;
+        lock.lock();
+        try {
+            checkOpen();
+            if (floatBuffer == null || floatBuffer.length < pcm.length) {
+                floatBuffer = new float[pcm.length];
+            }
+            AudioConverter.pcm16ToFloat(pcm, floatBuffer);
+            json = lib.parakeet_capi_stream_feed_json(stream, floatBuffer, pcm.length);
         } finally {
             lock.unlock();
         }
@@ -104,6 +135,7 @@ public final class TranscribeStream implements AutoCloseable {
         lock.lock();
         try {
             if (closed.compareAndSet(false, true)) {
+                floatBuffer = null;
                 try {
                     lib.parakeet_capi_stream_free(stream);
                 } finally {

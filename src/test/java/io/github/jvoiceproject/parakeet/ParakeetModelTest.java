@@ -44,6 +44,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -85,7 +87,7 @@ public class ParakeetModelTest {
     }
 
     @Test
-    void transcribePcmSuccess() {
+    void transcribeFloatPcm() {
         fake.transcriptToReturn = "Hello world";
         TranscribeOptions options =
                 TranscribeOptions.builder()
@@ -95,6 +97,31 @@ public class ParakeetModelTest {
 
         float[] pcm = new float[] {0.1f, -0.1f};
         String result = model.transcribe(pcm, 16000, options);
+
+        assertEquals("Hello world", result);
+        assertEquals(TranscribeOptions.Decoder.CTC.getValue(), fake.lastDecoder);
+        assertEquals("en", fake.lastTargetLang);
+        assertEquals(16000, fake.lastSampleRate);
+    }
+
+    @Test
+    void transcribeSignedPcm() {
+        fake.transcriptToReturn = "Hello world";
+        short[] pcm = new short[] {-32768, 0, 16384};
+
+        TranscribeOptions options =
+                TranscribeOptions.builder()
+                        .decoder(TranscribeOptions.Decoder.CTC)
+                        .language("en")
+                        .build();
+
+        String result = model.transcribe(pcm, 16000, options);
+
+        assertNotNull(fake.lastPcm);
+        assertEquals(3, fake.lastPcm.length);
+        assertEquals(-1.0f, fake.lastPcm[0], 1e-6f);
+        assertEquals(0.0f, fake.lastPcm[1], 1e-6f);
+        assertEquals(0.5f, fake.lastPcm[2], 1e-6f);
 
         assertEquals("Hello world", result);
         assertEquals(TranscribeOptions.Decoder.CTC.getValue(), fake.lastDecoder);
@@ -177,7 +204,7 @@ public class ParakeetModelTest {
     }
 
     @Test
-    void streamingSessionLifecycle() {
+    void transcribeStreamSessionLifecycle() {
         fake.jsonToReturn =
                 """
                 {
@@ -215,7 +242,49 @@ public class ParakeetModelTest {
     }
 
     @Test
-    void vadOfflineAndStreamingLifecycle(@TempDir Path tempDir) throws IOException {
+    void transcribeStreamFeedSignedPcm() {
+        fake.jsonToReturn =
+                """
+                {
+                  "text": "Hello world",
+                  "eou": 0,
+                  "eob": 0,
+                  "frame_sec": 0.08,
+                  "events": [],
+                  "words": []
+                }
+                """;
+
+        try (TranscribeStream stream = model.startTranscribeStream("en")) {
+            short[] pcm1 = new short[] {-32768, 16384};
+            TranscribeStreamResult result = stream.feed(pcm1);
+            assertEquals("Hello world", result.text());
+            float[] firstBuffer = fake.lastPcm;
+            assertNotNull(firstBuffer);
+            assertEquals(2, fake.lastNSamples);
+            assertEquals(-1.0f, firstBuffer[0], 1e-6f);
+            assertEquals(0.5f, firstBuffer[1], 1e-6f);
+
+            // Equal/smaller chunk reuses the same floatBuffer
+            short[] pcm2 = new short[] {0};
+            stream.feed(pcm2);
+            assertSame(firstBuffer, fake.lastPcm);
+            assertEquals(1, fake.lastNSamples);
+            assertEquals(0.0f, fake.lastPcm[0], 1e-6f);
+
+            // Larger chunk grows floatBuffer
+            short[] pcm3 = new short[] {16384, -16384, 0};
+            stream.feed(pcm3);
+            assertNotSame(firstBuffer, fake.lastPcm);
+            assertEquals(3, fake.lastNSamples);
+            assertEquals(0.5f, fake.lastPcm[0], 1e-6f);
+            assertEquals(-0.5f, fake.lastPcm[1], 1e-6f);
+            assertEquals(0.0f, fake.lastPcm[2], 1e-6f);
+        }
+    }
+
+    @Test
+    void detectSpeechFloatPcm(@TempDir Path tempDir) throws IOException {
         Path wav = tempDir.resolve("speech.wav");
         Files.write(wav, new byte[] {1, 2, 3});
 
@@ -240,6 +309,51 @@ public class ParakeetModelTest {
         assertEquals(0.5, vadRes.segments().getFirst().start());
         assertEquals(2.5, vadRes.segments().getFirst().end());
         assertEquals(2, vadRes.probabilities().size());
+    }
+
+    @Test
+    void detectSpeechSignedPcm() {
+        fake.jsonToReturn =
+                """
+                {
+                  "mode": "speech",
+                  "duration": 5.0,
+                  "frame_sec": 0.08,
+                  "backend": "cpu",
+                  "segments": [{"start": 0.5, "end": 2.5}],
+                  "probabilities": [0.1, 0.9]
+                }
+                """;
+
+        VadOptions options = VadOptions.builder().threshold(0.6).minPause(0.3).build();
+        short[] pcm = new short[] {16384, -16384};
+
+        VadResult detectRes = model.detectSpeech(pcm, 16000, options);
+        assertNotNull(detectRes);
+        assertEquals("speech", detectRes.mode());
+        assertNotNull(fake.lastPcm);
+        assertEquals(0.5f, fake.lastPcm[0], 1e-6f);
+
+        fake.jsonToReturn =
+                """
+                {
+                  "mode": "segments",
+                  "duration": 5.0,
+                  "frame_sec": 0.08,
+                  "backend": "cpu",
+                  "segments": [{"start": 0.0, "end": 5.0}],
+                  "probabilities": []
+                }
+                """;
+        VadResult segmentRes = model.segmentSpeech(pcm, 16000, options);
+        assertNotNull(segmentRes);
+        assertEquals("segments", segmentRes.mode());
+    }
+
+    @Test
+    void vadStreamFeedFloatPcmLifecycle(@TempDir Path tempDir) throws IOException {
+        Path wav = tempDir.resolve("speech.wav");
+        Files.write(wav, new byte[] {1, 2, 3});
 
         // Streaming VAD
         fake.jsonToReturn =
@@ -252,6 +366,7 @@ public class ParakeetModelTest {
                 }
                 """;
 
+        VadOptions options = VadOptions.builder().threshold(0.6).minPause(0.3).build();
         VadStream vadStream = model.startVadStream(16000, options);
         assertNotNull(vadStream);
         assertFalse(vadStream.isClosed());
@@ -266,6 +381,68 @@ public class ParakeetModelTest {
         vadStream.close();
         assertTrue(vadStream.isClosed());
         assertEquals(1, fake.freeVadStreamCount);
+    }
+
+    @Test
+    void vadStreamFeedSignedPcm() {
+        fake.jsonToReturn =
+                """
+                {
+                  "frame_sec": 0.032,
+                  "first_frame": 10,
+                  "events": [{"type": "start", "time": 0.32}],
+                  "probabilities": [0.8]
+                }
+                """;
+
+        try (VadStream vadStream = model.startVadStream(16000, VadOptions.DEFAULT)) {
+            short[] pcm1 = new short[] {16384, -16384};
+            VadStreamResult result = vadStream.feed(pcm1, false);
+            assertNotNull(result);
+            assertEquals(1, result.events().size());
+            float[] firstBuffer = fake.lastPcm;
+            assertNotNull(firstBuffer);
+            assertEquals(2, fake.lastNSamples);
+            assertEquals(0.5f, firstBuffer[0], 1e-6f);
+            assertEquals(-0.5f, firstBuffer[1], 1e-6f);
+
+            // Equal/smaller chunk reuses the same floatBuffer
+            short[] pcm2 = new short[] {0};
+            vadStream.feed(pcm2, true);
+            assertSame(firstBuffer, fake.lastPcm);
+            assertEquals(1, fake.lastNSamples);
+            assertEquals(0.0f, fake.lastPcm[0], 1e-6f);
+
+            // Larger chunk grows floatBuffer
+            short[] pcm3 = new short[] {-32768, 0, 16384};
+            vadStream.feed(pcm3, false);
+            assertNotSame(firstBuffer, fake.lastPcm);
+            assertEquals(3, fake.lastNSamples);
+            assertEquals(-1.0f, fake.lastPcm[0], 1e-6f);
+            assertEquals(0.0f, fake.lastPcm[1], 1e-6f);
+            assertEquals(0.5f, fake.lastPcm[2], 1e-6f);
+        }
+    }
+
+    @Test
+    void signedPcmOverloadsNullChecks() {
+        assertThrows(NullPointerException.class, () -> model.transcribe((short[]) null, 16000));
+        assertThrows(
+                NullPointerException.class,
+                () -> model.transcribe((short[]) null, 16000, TranscribeOptions.DEFAULT));
+        assertThrows(
+                NullPointerException.class,
+                () -> model.detectSpeech((short[]) null, 16000, VadOptions.DEFAULT));
+        assertThrows(
+                NullPointerException.class,
+                () -> model.segmentSpeech((short[]) null, 16000, VadOptions.DEFAULT));
+
+        try (TranscribeStream stream = model.startTranscribeStream()) {
+            assertThrows(NullPointerException.class, () -> stream.feed((short[]) null));
+        }
+        try (VadStream stream = model.startVadStream(16000, VadOptions.DEFAULT)) {
+            assertThrows(NullPointerException.class, () -> stream.feed((short[]) null, false));
+        }
     }
 
     @Test

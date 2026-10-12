@@ -19,6 +19,7 @@
  */
 package io.github.jvoiceproject.parakeet;
 
+import io.github.jvoiceproject.parakeet.internal.AudioConverter;
 import io.github.jvoiceproject.parakeet.internal.Json;
 import io.github.jvoiceproject.parakeet.internal.ParakeetBinding;
 import io.github.jvoiceproject.parakeet.transcribe.TranscribeOptions;
@@ -196,6 +197,30 @@ public final class ParakeetModel implements AutoCloseable {
         } finally {
             rwLock.readLock().unlock();
         }
+    }
+
+    /**
+     * Transcribes in-memory mono signed 16-bit PCM audio with default options.
+     *
+     * @param pcm Signed 16-bit audio samples in range [-32768, 32767].
+     * @param sampleRate Sample rate in Hz (e.g., 16000 = 16 kHz).
+     * @return Transcript text.
+     */
+    public String transcribe(short[] pcm, int sampleRate) {
+        return transcribe(pcm, sampleRate, TranscribeOptions.DEFAULT);
+    }
+
+    /**
+     * Transcribes in-memory mono signed 16-bit PCM audio with specified options.
+     *
+     * @param pcm Signed 16-bit audio samples in range [-32768, 32767].
+     * @param sampleRate Sample rate in Hz (e.g., 16000 = 16 kHz).
+     * @param options {@link TranscribeOptions}.
+     * @return Transcript text.
+     */
+    public String transcribe(short[] pcm, int sampleRate, TranscribeOptions options) {
+        Objects.requireNonNull(pcm, "pcm samples cannot be null");
+        return transcribe(AudioConverter.pcm16ToFloat(pcm), sampleRate, options);
     }
 
     /**
@@ -454,6 +479,20 @@ public final class ParakeetModel implements AutoCloseable {
     }
 
     /**
+     * Performs Voice Activity Detection on in-memory signed 16-bit PCM audio returning speech
+     * regions.
+     *
+     * @param pcm Signed 16-bit audio samples in range [-32768, 32767].
+     * @param sampleRate Audio sample rate in Hz.
+     * @param options {@link VadOptions} configuration.
+     * @return {@link VadResult} containing speech regions.
+     */
+    public VadResult detectSpeech(short[] pcm, int sampleRate, VadOptions options) {
+        Objects.requireNonNull(pcm, "pcm samples cannot be null");
+        return detectSpeech(AudioConverter.pcm16ToFloat(pcm), sampleRate, options);
+    }
+
+    /**
      * Segments audio into balanced speech chunks (capped by maxSegment) for ASR processing.
      *
      * <p>These are the cuts the transcriber internally uses for ASR.
@@ -518,6 +557,20 @@ public final class ParakeetModel implements AutoCloseable {
         } finally {
             rwLock.readLock().unlock();
         }
+    }
+
+    /**
+     * Segments in-memory signed 16-bit PCM audio into balanced speech chunks (capped by
+     * maxSegment).
+     *
+     * @param pcm Signed 16-bit audio samples in range [-32768, 32767].
+     * @param sampleRate Audio sample rate in Hz.
+     * @param options {@link VadOptions} configuration.
+     * @return {@link VadResult} containing segmented regions.
+     */
+    public VadResult segmentSpeech(short[] pcm, int sampleRate, VadOptions options) {
+        Objects.requireNonNull(pcm, "pcm samples cannot be null");
+        return segmentSpeech(AudioConverter.pcm16ToFloat(pcm), sampleRate, options);
     }
 
     /**
