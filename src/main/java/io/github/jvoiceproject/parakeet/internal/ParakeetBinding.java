@@ -171,55 +171,6 @@ public interface ParakeetBinding {
     String parakeet_capi_transcribe_path_json(MemorySegment ctx, String wavPath, int decoder);
 
     /**
-     * Transcribe a batch of in-memory mono float PCM clips, selecting the language prompt for
-     * multilingual models. ONE {@code targetLang} applies to the whole batch.
-     *
-     * @param ctx The native context pointer.
-     * @param pcmConcat Concatenated 16 kHz mono float samples for all clips.
-     * @param sampleCounts Array containing the sample count for each clip in the batch.
-     * @param batchSize The number of clips (length of sampleCounts array).
-     * @param sampleRate Sample rate in Hz.
-     * @param decoder Selects the head: 0 = default, 1 = ctc, 2 = tdt/rnnt.
-     * @param targetLang Locale string (e.g., "en", "de", "auto"). NULL or "" uses the model's
-     *     default.
-     * @param outTexts Caller-allocated String array to hold transcripts on success.
-     * @return 0 on success (populates outTexts), or nonzero on error (leaves outTexts unchanged,
-     *     sets last_error).
-     */
-    int parakeet_capi_transcribe_pcm_batch_lang(
-            MemorySegment ctx,
-            float[] pcmConcat,
-            int[] sampleCounts,
-            int batchSize,
-            int sampleRate,
-            int decoder,
-            String targetLang,
-            String[] outTexts);
-
-    /**
-     * Batched transcription with timestamps, returning ONE JSON string that is a JSON ARRAY of
-     * documents identically shaped to {@link #parakeet_capi_transcribe_path_json}.
-     *
-     * @param ctx The native context pointer.
-     * @param pcmConcat Concatenated 16 kHz mono float samples for all clips.
-     * @param sampleCounts Array containing the sample count for each clip in the batch.
-     * @param batchSize The number of clips (length of sampleCounts array).
-     * @param sampleRate Sample rate in Hz.
-     * @param decoder Selects the head: 0 = default, 1 = ctc, 2 = tdt/rnnt.
-     * @param targetLang Locale string (e.g., "en", "de", "auto"). NULL or "" uses the model's
-     *     default.
-     * @return JSON string array of batched results, or NULL on error.
-     */
-    String parakeet_capi_transcribe_pcm_batch_json_lang(
-            MemorySegment ctx,
-            float[] pcmConcat,
-            int[] sampleCounts,
-            int batchSize,
-            int sampleRate,
-            int decoder,
-            String targetLang);
-
-    /**
      * Begin a streaming session selecting the language prompt for multilingual models. The context
      * (and its model) must outlive the stream.
      *

@@ -146,37 +146,6 @@ public class ParakeetModelTest {
     }
 
     @Test
-    void transcribeBatchSuccess() {
-        fake.transcriptToReturn = "Clip";
-        List<float[]> clips = List.of(new float[] {0.1f, 0.2f}, new float[] {-0.1f});
-
-        List<String> results = model.batchTranscribe(clips, 16000, TranscribeOptions.DEFAULT);
-
-        assertEquals(2, results.size());
-        assertEquals("Clip", results.get(0));
-        assertEquals("Clip", results.get(1));
-    }
-
-    @Test
-    void transcribeBatchWithTimestamps() {
-        fake.jsonToReturn =
-                """
-                [
-                  {"text": "Clip 0", "frame_sec": 0.08, "words": [], "tokens": []},
-                  {"text": "Clip 1", "frame_sec": 0.08, "words": [], "tokens": []}
-                ]
-                """;
-
-        List<float[]> clips = List.of(new float[] {0.1f}, new float[] {0.2f});
-        List<Transcription> results =
-                model.batchTranscribeWithTimestamps(clips, 16000, TranscribeOptions.DEFAULT);
-
-        assertEquals(2, results.size());
-        assertEquals("Clip 0", results.get(0).text());
-        assertEquals("Clip 1", results.get(1).text());
-    }
-
-    @Test
     void streamingSessionLifecycle() {
         fake.jsonToReturn =
                 """

@@ -149,48 +149,6 @@ public class FakeParakeetBinding implements ParakeetBinding {
     }
 
     @Override
-    public int parakeet_capi_transcribe_pcm_batch_lang(
-            MemorySegment ctx,
-            float[] pcmConcat,
-            int[] sampleCounts,
-            int batchSize,
-            int sampleRate,
-            int decoder,
-            String targetLang,
-            String[] outTexts) {
-        lastDecoder = decoder;
-        lastTargetLang = targetLang;
-        lastSampleRate = sampleRate;
-        if (shouldFail) {
-            return -1;
-        }
-        if (outTexts != null) {
-            for (int i = 0; i < batchSize; i++) {
-                outTexts[i] = transcriptToReturn;
-            }
-        }
-        return 0;
-    }
-
-    @Override
-    public String parakeet_capi_transcribe_pcm_batch_json_lang(
-            MemorySegment ctx,
-            float[] pcmConcat,
-            int[] sampleCounts,
-            int batchSize,
-            int sampleRate,
-            int decoder,
-            String targetLang) {
-        lastDecoder = decoder;
-        lastTargetLang = targetLang;
-        lastSampleRate = sampleRate;
-        if (shouldFail) {
-            return null;
-        }
-        return jsonToReturn;
-    }
-
-    @Override
     public MemorySegment parakeet_capi_stream_begin_lang(MemorySegment ctx, String targetLang) {
         lastTargetLang = targetLang;
         if (shouldFail) {
