@@ -560,7 +560,7 @@ public final class ParakeetModel implements AutoCloseable {
      */
     public Transcription transcribeWithVad(
             Path wav, TranscribeOptions transcribeOptions, VadOptions vadOptions) {
-        return transcribeWithVad(this, wav, transcribeOptions, vadOptions);
+        return transcribeWithVad(null, wav, transcribeOptions, vadOptions);
     }
 
     /**
