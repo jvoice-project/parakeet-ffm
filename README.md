@@ -203,6 +203,8 @@ Compile `libparakeet` and install it into `src/main/resources/native/`:
 - **macOS:** Run `./build_macos.sh`
 - **Windows:** Run `.\build_win.cmd`
 
+For building with specific hardware acceleration backends (CUDA, Vulkan, Metal) and detailed configuration options, see [BUILD.md](BUILD.md).
+
 ### Building with Docker (Multi-Architecture)
 
 To build portable Linux libraries (`amd64`, `arm64`) with GLIBC 2.31 compatibility using Docker Buildx:

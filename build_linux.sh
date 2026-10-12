@@ -22,6 +22,6 @@ if [ ! -f "src/main/native/parakeet/CMakeLists.txt" ]; then
     git submodule update --init --recursive
 fi
 
-cmake -Bbuild -DCMAKE_INSTALL_PREFIX="$TARGET_DIR"
+cmake -Bbuild -DCMAKE_INSTALL_PREFIX="$TARGET_DIR" "${@:2}"
 cmake --build build --config Release -j$(nproc)
 cmake --install build

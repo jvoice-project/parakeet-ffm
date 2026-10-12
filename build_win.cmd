@@ -9,6 +9,6 @@ if not exist "src\main\native\parakeet\CMakeLists.txt" (
     git submodule update --init --recursive
 )
 
-cmake -Bbuild -DCMAKE_INSTALL_PREFIX="%TARGET_DIR%"
+cmake -Bbuild -DCMAKE_INSTALL_PREFIX="%TARGET_DIR%" %2 %3 %4 %5 %6 %7 %8 %9
 cmake --build build --config Release -j %NUMBER_OF_PROCESSORS%
 cmake --install build
