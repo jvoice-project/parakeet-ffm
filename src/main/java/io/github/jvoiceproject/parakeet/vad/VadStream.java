@@ -20,6 +20,7 @@
 package io.github.jvoiceproject.parakeet.vad;
 
 import io.github.jvoiceproject.parakeet.ParakeetException;
+import io.github.jvoiceproject.parakeet.internal.AudioConverter;
 import io.github.jvoiceproject.parakeet.internal.Json;
 import io.github.jvoiceproject.parakeet.internal.ParakeetBinding;
 
@@ -44,6 +45,7 @@ public final class VadStream implements AutoCloseable {
     private final Consumer<VadStream> onClose;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final ReentrantLock lock = new ReentrantLock();
+    private float[] floatBuffer;
 
     public VadStream(ParakeetBinding lib, MemorySegment vadStream, Consumer<VadStream> onClose) {
         this.lib = Objects.requireNonNull(lib, "lib cannot be null");
@@ -61,14 +63,45 @@ public final class VadStream implements AutoCloseable {
      * @throws ParakeetException if feeding fails.
      */
     public VadStreamResult feed(float[] pcm, boolean isLast) {
+        Objects.requireNonNull(pcm, "pcm samples cannot be null");
         String json;
         lock.lock();
         try {
             checkOpen();
-            Objects.requireNonNull(pcm, "pcm samples cannot be null");
             json =
                     lib.parakeet_capi_vad_stream_feed_json(
                             vadStream, pcm, pcm.length, isLast ? 1 : 0);
+        } finally {
+            lock.unlock();
+        }
+        if (json == null) {
+            throw new ParakeetException("VAD stream feed failed");
+        }
+        return Json.GSON.fromJson(json, VadStreamResult.class);
+    }
+
+    /**
+     * Feeds mono signed 16-bit PCM audio chunks to the VAD stream.
+     *
+     * @param pcm Signed 16-bit audio samples in range [-32768, 32767].
+     * @param isLast Whether this is the final chunk of audio.
+     * @return {@link VadStreamResult} containing newly detected speech events.
+     * @throws IllegalStateException if this stream is closed.
+     * @throws ParakeetException if feeding fails.
+     */
+    public VadStreamResult feed(short[] pcm, boolean isLast) {
+        Objects.requireNonNull(pcm, "pcm samples cannot be null");
+        String json;
+        lock.lock();
+        try {
+            checkOpen();
+            if (floatBuffer == null || floatBuffer.length < pcm.length) {
+                floatBuffer = new float[pcm.length];
+            }
+            AudioConverter.pcm16ToFloat(pcm, floatBuffer);
+            json =
+                    lib.parakeet_capi_vad_stream_feed_json(
+                            vadStream, floatBuffer, pcm.length, isLast ? 1 : 0);
         } finally {
             lock.unlock();
         }
@@ -102,6 +135,7 @@ public final class VadStream implements AutoCloseable {
         lock.lock();
         try {
             if (closed.compareAndSet(false, true)) {
+                floatBuffer = null;
                 try {
                     lib.parakeet_capi_vad_stream_free(vadStream);
                 } finally {

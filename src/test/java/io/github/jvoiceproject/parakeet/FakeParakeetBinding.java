@@ -49,6 +49,8 @@ public class FakeParakeetBinding implements ParakeetBinding {
     public int lastDecoder;
     public String lastOptionsJson;
     public int lastSampleRate;
+    public float[] lastPcm;
+    public int lastNSamples;
     public MemorySegment lastVadCtx;
 
     @Override
@@ -129,6 +131,8 @@ public class FakeParakeetBinding implements ParakeetBinding {
             int sampleRate,
             int decoder,
             String targetLang) {
+        lastPcm = pcm;
+        lastNSamples = nSamples;
         lastDecoder = decoder;
         lastTargetLang = targetLang;
         lastSampleRate = sampleRate;
@@ -159,6 +163,8 @@ public class FakeParakeetBinding implements ParakeetBinding {
 
     @Override
     public String parakeet_capi_stream_feed_json(MemorySegment stream, float[] pcm, int nSamples) {
+        lastPcm = pcm;
+        lastNSamples = nSamples;
         if (shouldFail) {
             return null;
         }
@@ -181,6 +187,8 @@ public class FakeParakeetBinding implements ParakeetBinding {
     @Override
     public String parakeet_capi_vad_pcm_json(
             MemorySegment ctx, float[] pcm, int nSamples, int sampleRate, String optionsJson) {
+        lastPcm = pcm;
+        lastNSamples = nSamples;
         lastOptionsJson = optionsJson;
         lastSampleRate = sampleRate;
         if (shouldFail) {
@@ -229,6 +237,8 @@ public class FakeParakeetBinding implements ParakeetBinding {
     @Override
     public String parakeet_capi_vad_stream_feed_json(
             MemorySegment vadStream, float[] pcm, int nSamples, int isLast) {
+        lastPcm = pcm;
+        lastNSamples = nSamples;
         if (shouldFail) {
             return null;
         }

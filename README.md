@@ -142,8 +142,8 @@ import java.nio.file.Path;
 
 try (ParakeetModel model = Parakeet.loadModel(Path.of("realtime_eou_120m-v1-q8_0.gguf"));
      TranscribeStream stream = model.startTranscribeStream()) {
-    // Feed 16 kHz mono float PCM chunks as they arrive (e.g. from a microphone)
-    float[] pcmChunk = ...;
+    // Feed 16 kHz mono PCM chunks as they arrive (supports float[] or short[] signed 16-bit)
+    float[] pcmChunk = ...; // or short[]
     TranscribeStreamResult result = stream.feed(pcmChunk);
     if (!result.text().isEmpty()) {
         System.out.print(result.text());
