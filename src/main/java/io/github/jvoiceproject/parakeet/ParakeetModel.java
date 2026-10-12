@@ -580,32 +580,60 @@ public final class ParakeetModel implements AutoCloseable {
             Path wav,
             TranscribeOptions transcribeOptions,
             VadOptions vadOptions) {
-        checkOpen();
-        Objects.requireNonNull(vadModel, "vadModel cannot be null");
-        vadModel.checkOpen();
         validateWavFile(wav);
 
+        if (vadModel == null || vadModel == this) {
+            rwLock.readLock().lock();
+            try {
+                checkOpen();
+                return doTranscribeWithVad(MemorySegment.NULL, wav, transcribeOptions, vadOptions);
+            } finally {
+                rwLock.readLock().unlock();
+            }
+        } else {
+            ParakeetModel first =
+                    System.identityHashCode(this) <= System.identityHashCode(vadModel)
+                            ? this
+                            : vadModel;
+            ParakeetModel second = (first == this) ? vadModel : this;
+
+            first.rwLock.readLock().lock();
+            try {
+                second.rwLock.readLock().lock();
+                try {
+                    checkOpen();
+                    vadModel.checkOpen();
+                    return doTranscribeWithVad(vadModel.ctx, wav, transcribeOptions, vadOptions);
+                } finally {
+                    second.rwLock.readLock().unlock();
+                }
+            } finally {
+                first.rwLock.readLock().unlock();
+            }
+        }
+    }
+
+    private Transcription doTranscribeWithVad(
+            MemorySegment vadCtx,
+            Path wav,
+            TranscribeOptions transcribeOptions,
+            VadOptions vadOptions) {
         TranscribeOptions tOpts =
                 transcribeOptions != null ? transcribeOptions : TranscribeOptions.DEFAULT;
         VadOptions vOpts = vadOptions != null ? vadOptions : VadOptions.DEFAULT;
 
-        rwLock.readLock().lock();
-        try {
-            String json =
-                    lib.parakeet_capi_transcribe_path_json_vad_with(
-                            ctx,
-                            vadModel.ctx(),
-                            wav.toAbsolutePath().toString(),
-                            tOpts.getDecoder().getValue(),
-                            vOpts.toJson());
-            if (json == null) {
-                throw new ParakeetException(
-                        "VAD-guided transcription failed: " + lib.parakeet_capi_last_error(ctx));
-            }
-            return Json.GSON.fromJson(json, Transcription.class);
-        } finally {
-            rwLock.readLock().unlock();
+        String json =
+                lib.parakeet_capi_transcribe_path_json_vad_with(
+                        ctx,
+                        vadCtx,
+                        wav.toAbsolutePath().toString(),
+                        tOpts.getDecoder().getValue(),
+                        vOpts.toJson());
+        if (json == null) {
+            throw new ParakeetException(
+                    "VAD-guided transcription failed: " + lib.parakeet_capi_last_error(ctx));
         }
+        return Json.GSON.fromJson(json, Transcription.class);
     }
 
     @Override
