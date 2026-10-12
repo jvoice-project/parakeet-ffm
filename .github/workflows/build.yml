@@ -261,9 +261,16 @@ jobs:
         run: |
           ./mvnw -B clean deploy -DskipTests -Pci-cd
           VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
-          PARAKEET_VERSION=$(echo "${VERSION%%"-"*}")
+
+          # Remove suffix like -SNAPSHOT
+          PARAKEET_VERSION="${VERSION%%-*}"
+          # Split x.y.z.v
+          BASE_VERSION="${PARAKEET_VERSION%.*}" # x.y.z
+          REVISION="${PARAKEET_VERSION##*.}"    # v
+
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "PARAKEET_VERSION=$PARAKEET_VERSION" >> $GITHUB_OUTPUT
+          echo "PARAKEET_VERSION=$BASE_VERSION" >> $GITHUB_OUTPUT
+          echo "REVISION=$REVISION" >> $GITHUB_OUTPUT
         env:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_CENTRAL_TOKEN: ${{ secrets.MAVEN_TOKEN }}
@@ -276,7 +283,7 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
-          body: A FFM wrapper for parakeet.cpp v${{ steps.deploy.outputs.PARAKEET_VERSION }}
+          body: A FFM wrapper for parakeet.cpp v${{ steps.deploy.outputs.PARAKEET_VERSION }}, revision ${{ steps.deploy.outputs.REVISION }}
           files: |
             target/parakeet-ffm-${{ steps.deploy.outputs.VERSION }}.jar
         env:
