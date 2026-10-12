@@ -33,16 +33,12 @@ import java.io.FileNotFoundException;
 import java.lang.foreign.MemorySegment;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import com.google.gson.reflect.TypeToken;
 
 /**
  * An opened Parakeet model context. Manages native resources and active streams.
@@ -245,134 +241,6 @@ public final class ParakeetModel implements AutoCloseable {
                         "Failed to transcribe " + wav + ": " + lib.parakeet_capi_last_error(ctx));
             }
             return Json.GSON.fromJson(json, Transcription.class);
-        } finally {
-            rwLock.readLock().unlock();
-        }
-    }
-
-    /**
-     * Transcribes a batch of in-memory PCM audio clips.
-     *
-     * @param pcmClips List of float sample arrays.
-     * @param sampleRate Audio sample rate in Hz.
-     * @param options {@link TranscribeOptions}.
-     * @return List of transcript strings in order.
-     */
-    public List<String> batchTranscribe(
-            List<float[]> pcmClips, int sampleRate, TranscribeOptions options) {
-        Objects.requireNonNull(pcmClips, "pcmClips cannot be null");
-        if (sampleRate <= 0) {
-            throw new IllegalArgumentException("sampleRate must be positive: " + sampleRate);
-        }
-        TranscribeOptions opts = options != null ? options : TranscribeOptions.DEFAULT;
-
-        List<float[]> clips = List.copyOf(pcmClips);
-        if (clips.isEmpty()) {
-            return List.of();
-        }
-
-        int totalSamples = 0;
-        int[] sampleCounts = new int[clips.size()];
-        for (int i = 0; i < clips.size(); i++) {
-            float[] clip = clips.get(i);
-            Objects.requireNonNull(clip, "pcm clip " + i + " cannot be null");
-            sampleCounts[i] = clip.length;
-            totalSamples += clip.length;
-        }
-
-        float[] pcmConcat = new float[totalSamples];
-        int offset = 0;
-        for (float[] clip : clips) {
-            System.arraycopy(clip, 0, pcmConcat, offset, clip.length);
-            offset += clip.length;
-        }
-
-        String[] outTexts = new String[clips.size()];
-        List<String> result = new ArrayList<>(clips.size());
-
-        rwLock.readLock().lock();
-        try {
-            checkOpen();
-            int rc =
-                    lib.parakeet_capi_transcribe_pcm_batch_lang(
-                            ctx,
-                            pcmConcat,
-                            sampleCounts,
-                            clips.size(),
-                            sampleRate,
-                            opts.getDecoder().getValue(),
-                            opts.getLanguage(),
-                            outTexts);
-            if (rc != 0) {
-                throw new ParakeetException(
-                        "Batch transcription failed: " + lib.parakeet_capi_last_error(ctx));
-            }
-
-            for (String t : outTexts) {
-                result.add(t != null ? t : "");
-            }
-            return result;
-        } finally {
-            rwLock.readLock().unlock();
-        }
-    }
-
-    /**
-     * Transcribes a batch of in-memory PCM audio clips returning timestamps.
-     *
-     * @param pcmClips List of float sample arrays.
-     * @param sampleRate Audio sample rate in Hz.
-     * @param options {@link TranscribeOptions}.
-     * @return List of {@link Transcription} objects in order.
-     */
-    public List<Transcription> batchTranscribeWithTimestamps(
-            List<float[]> pcmClips, int sampleRate, TranscribeOptions options) {
-        Objects.requireNonNull(pcmClips, "pcmClips cannot be null");
-        if (sampleRate <= 0) {
-            throw new IllegalArgumentException("sampleRate must be positive: " + sampleRate);
-        }
-        TranscribeOptions opts = options != null ? options : TranscribeOptions.DEFAULT;
-
-        List<float[]> clips = List.copyOf(pcmClips);
-        if (clips.isEmpty()) {
-            return List.of();
-        }
-
-        int totalSamples = 0;
-        int[] sampleCounts = new int[clips.size()];
-        for (int i = 0; i < clips.size(); i++) {
-            float[] clip = clips.get(i);
-            Objects.requireNonNull(clip, "pcm clip " + i + " cannot be null");
-            sampleCounts[i] = clip.length;
-            totalSamples += clip.length;
-        }
-
-        float[] pcmConcat = new float[totalSamples];
-        int offset = 0;
-        for (float[] clip : clips) {
-            System.arraycopy(clip, 0, pcmConcat, offset, clip.length);
-            offset += clip.length;
-        }
-
-        rwLock.readLock().lock();
-        try {
-            checkOpen();
-            String json =
-                    lib.parakeet_capi_transcribe_pcm_batch_json_lang(
-                            ctx,
-                            pcmConcat,
-                            sampleCounts,
-                            clips.size(),
-                            sampleRate,
-                            opts.getDecoder().getValue(),
-                            opts.getLanguage());
-            if (json == null) {
-                throw new ParakeetException(
-                        "Batch transcription failed: " + lib.parakeet_capi_last_error(ctx));
-            }
-            List<Transcription> list =
-                    Json.GSON.fromJson(json, new TypeToken<List<Transcription>>() {}.getType());
-            return list != null ? list : List.of();
         } finally {
             rwLock.readLock().unlock();
         }

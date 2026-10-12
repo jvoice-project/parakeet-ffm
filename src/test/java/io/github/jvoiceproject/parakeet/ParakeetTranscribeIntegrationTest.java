@@ -45,7 +45,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
- * Integration tests for Speech-to-Text transcription (offline, streaming, batched, VAD-segmented).
+ * Integration tests for Speech-to-Text transcription (offline, streaming, VAD-segmented).
  *
  * @author Florian Hotze - Initial contribution
  */
@@ -108,27 +108,6 @@ public class ParakeetTranscribeIntegrationTest extends ParakeetIntegrationTest {
                 assertTrue(w.confidence() > 0.0 && w.confidence() <= 1.0);
                 lastStart = w.start();
             }
-        }
-    }
-
-    @Test
-    void batchTranscription() throws Exception {
-        try (ParakeetModel model = Parakeet.loadModel(modelPath)) {
-            assertEquals(ModelKind.ASR, model.kind());
-
-            float[] pcm = readWavMono16k(audioPath);
-            List<float[]> clips = List.of(pcm, pcm);
-
-            List<String> results = model.batchTranscribe(clips, 16000, TranscribeOptions.DEFAULT);
-            assertEquals(2, results.size());
-            assertEquals(expectedText, results.get(0));
-            assertEquals(expectedText, results.get(1));
-
-            List<Transcription> tsResults =
-                    model.batchTranscribeWithTimestamps(clips, 16000, TranscribeOptions.DEFAULT);
-            assertEquals(2, tsResults.size());
-            assertEquals(expectedText, tsResults.get(0).text());
-            assertEquals(expectedText, tsResults.get(1).text());
         }
     }
 
