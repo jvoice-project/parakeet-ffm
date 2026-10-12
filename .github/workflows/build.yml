@@ -201,7 +201,7 @@ jobs:
           # Use -DforkCount=0 to run tests in the same process as Maven.
           # This avoids the "Abort trap 6" caused by the fork losing library context.
           # Also explicitly set the native library path just in case.
-          COMMON_OPTS="-B -DforkCount=0 -Ddebug.piper.jni=true"
+          COMMON_OPTS="-B -DforkCount=0"
 
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             echo "Running unit, native loading, and VAD integration tests on Windows (skipping heavy transcribe tests)"
