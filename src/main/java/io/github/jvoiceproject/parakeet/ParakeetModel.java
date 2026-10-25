@@ -62,10 +62,6 @@ public final class ParakeetModel implements AutoCloseable {
         this.ctx = Objects.requireNonNull(ctx, "ctx cannot be null");
     }
 
-    MemorySegment ctx() {
-        return ctx;
-    }
-
     /**
      * Returns the kind of model loaded in this context.
      *
@@ -75,7 +71,7 @@ public final class ParakeetModel implements AutoCloseable {
     public ModelKind kind() {
         rwLock.readLock().lock();
         try {
-            checkOpen();
+            assertOpen();
             return ModelKind.fromValue(lib.parakeet_capi_model_kind(ctx));
         } finally {
             rwLock.readLock().unlock();
@@ -99,7 +95,7 @@ public final class ParakeetModel implements AutoCloseable {
     public int setConcurrency(int backends, int threadsEach) {
         rwLock.readLock().lock();
         try {
-            checkOpen();
+            assertOpen();
             return lib.parakeet_capi_set_concurrency(ctx, backends, threadsEach);
         } finally {
             rwLock.readLock().unlock();
@@ -131,7 +127,7 @@ public final class ParakeetModel implements AutoCloseable {
 
         rwLock.readLock().lock();
         try {
-            checkOpen();
+            assertOpen();
             String text =
                     lib.parakeet_capi_transcribe_path_lang(
                             ctx,
@@ -176,7 +172,7 @@ public final class ParakeetModel implements AutoCloseable {
 
         rwLock.readLock().lock();
         try {
-            checkOpen();
+            assertOpen();
             String text =
                     lib.parakeet_capi_transcribe_pcm_lang(
                             ctx,
@@ -232,7 +228,7 @@ public final class ParakeetModel implements AutoCloseable {
 
         rwLock.readLock().lock();
         try {
-            checkOpen();
+            assertOpen();
             String json =
                     lib.parakeet_capi_transcribe_path_json(
                             ctx, wav.toAbsolutePath().toString(), opts.getDecoder().getValue());
@@ -264,7 +260,7 @@ public final class ParakeetModel implements AutoCloseable {
     public TranscribeStream startTranscribeStream(String targetLang) {
         rwLock.readLock().lock();
         try {
-            checkOpen();
+            assertOpen();
             MemorySegment streamHandle = lib.parakeet_capi_stream_begin_lang(ctx, targetLang);
             if (streamHandle == null
                     || streamHandle.equals(MemorySegment.NULL)
@@ -297,7 +293,7 @@ public final class ParakeetModel implements AutoCloseable {
 
         rwLock.readLock().lock();
         try {
-            checkOpen();
+            assertOpen();
             String json =
                     lib.parakeet_capi_vad_path_json(
                             ctx, wav.toAbsolutePath().toString(), opts.toJson());
@@ -333,7 +329,7 @@ public final class ParakeetModel implements AutoCloseable {
 
         rwLock.readLock().lock();
         try {
-            checkOpen();
+            assertOpen();
             String json =
                     lib.parakeet_capi_vad_pcm_json(ctx, pcm, pcm.length, sampleRate, opts.toJson());
             if (json == null) {
@@ -377,7 +373,7 @@ public final class ParakeetModel implements AutoCloseable {
 
         rwLock.readLock().lock();
         try {
-            checkOpen();
+            assertOpen();
 
             String json =
                     lib.parakeet_capi_vad_path_json(
@@ -414,7 +410,7 @@ public final class ParakeetModel implements AutoCloseable {
 
         rwLock.readLock().lock();
         try {
-            checkOpen();
+            assertOpen();
             String json =
                     lib.parakeet_capi_vad_pcm_json(ctx, pcm, pcm.length, sampleRate, opts.toJson());
             if (json == null) {
@@ -453,7 +449,7 @@ public final class ParakeetModel implements AutoCloseable {
 
         rwLock.readLock().lock();
         try {
-            checkOpen();
+            assertOpen();
             MemorySegment vadStreamHandle =
                     lib.parakeet_capi_vad_stream_begin(ctx, sampleRate, opts.toJson());
             if (vadStreamHandle == null
@@ -532,7 +528,7 @@ public final class ParakeetModel implements AutoCloseable {
         if (vadModel == null || vadModel == this) {
             rwLock.readLock().lock();
             try {
-                checkOpen();
+                assertOpen();
                 return doTranscribeWithVad(MemorySegment.NULL, wav, transcribeOptions, vadOptions);
             } finally {
                 rwLock.readLock().unlock();
@@ -548,8 +544,8 @@ public final class ParakeetModel implements AutoCloseable {
             try {
                 second.rwLock.readLock().lock();
                 try {
-                    checkOpen();
-                    vadModel.checkOpen();
+                    assertOpen();
+                    vadModel.assertOpen();
                     return doTranscribeWithVad(vadModel.ctx, wav, transcribeOptions, vadOptions);
                 } finally {
                     second.rwLock.readLock().unlock();
@@ -615,7 +611,7 @@ public final class ParakeetModel implements AutoCloseable {
         return closed.get();
     }
 
-    private void checkOpen() {
+    private void assertOpen() {
         if (closed.get()) {
             throw new IllegalStateException("Model has already been closed");
         }
