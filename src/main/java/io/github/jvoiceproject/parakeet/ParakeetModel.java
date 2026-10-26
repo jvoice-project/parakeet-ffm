@@ -63,7 +63,7 @@ public final class ParakeetModel implements AutoCloseable {
     }
 
     /**
-     * Returns the kind of model loaded in this context.
+     * Returns the kind of model loaded in this model context.
      *
      * @return {@link ModelKind} of this model.
      * @throws IllegalStateException if this model is closed.
@@ -81,11 +81,11 @@ public final class ParakeetModel implements AutoCloseable {
     /**
      * Sets concurrency pool size for parallel CPU transcription.
      *
-     * <p>By default, a context runs one request at a time: calls from several threads are safe but
-     * queue behing one computed backend. This method can be used to turn on a pool of CPU backends
-     * for the context's ASR model, each with <code>threadsEach</code> many compute threads. Choose
-     * <code>backends * threadsEach</code> at most the number of physical cores: the compute thread
-     * teams spin, and oversubscribing slows everything.
+     * <p>By default, a model context runs one request at a time: calls from several threads are
+     * safe but queue behind one compute backend. This method can be used to turn on a pool of CPU
+     * backends for the context's ASR model, each with <code>threadsEach</code> many compute
+     * threads. Choose <code>backends * threadsEach</code> at most the number of physical cores: the
+     * compute thread teams spin, and oversubscribing slows everything.
      *
      * @param backends Number of parallel compute backends.
      * @param threadsEach Compute threads per backend (&lt;= 0) for default budget).
