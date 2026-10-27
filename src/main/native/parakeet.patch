@@ -115,13 +115,14 @@ index 0413572..2e30d49 100644
  // Serialize a Transcription to the C-API JSON document shape:
  // {"text", "frame_sec", "words", "tokens"} and, when a word filter ran,
 diff --git a/src/vad_json.cpp b/src/vad_json.cpp
-index 4fa3cb3..769f01c 100644
+index 4fa3cb3..2256888 100644
 --- a/src/vad_json.cpp
 +++ b/src/vad_json.cpp
-@@ -1,9 +1,12 @@
+@@ -1,9 +1,13 @@
  #include "vad_json.hpp"
 +#include "transcription_json.hpp"
  
++#include <charconv>
  #include <cmath>
  #include <cstdio>
  #include <cstdlib>
@@ -131,28 +132,37 @@ index 4fa3cb3..769f01c 100644
  #include <stdexcept>
  
  #include "backend.hpp"
-@@ -36,10 +39,16 @@ bool parse_string(Cursor& c, std::string& out) {
+@@ -36,11 +40,26 @@ bool parse_string(Cursor& c, std::string& out) {
  }
  
  bool parse_number(Cursor& c, double& v) {
 -    char* end = nullptr;
 -    v = std::strtod(c.p, &end);
 -    if (end == c.p || !std::isfinite(v)) return false;
--    c.p = end;
-+    std::istringstream iss(c.p);
-+    iss.imbue(std::locale::classic());
-+    iss >> v;
-+    if (iss.fail() || !std::isfinite(v)) return false;
-+    std::streampos pos = iss.tellg();
-+    if (pos == std::streampos(-1)) {
-+        c.p += std::strlen(c.p);
-+    } else {
-+        c.p += (std::streamoff)pos;
++#if defined(__cpp_lib_to_chars) && !defined(_LIBCPP_VERSION)
++    auto [ptr, ec] = std::from_chars(c.p, c.p + std::strlen(c.p), v);
++    if (ec != std::errc() || !std::isfinite(v)) return false;
++    c.p = ptr;
++    return true;
++#else
++    const char* start = c.p;
++    const char* end = start;
++    if (*end == '-' || *end == '+') ++end;
++    while (*end && (*end == '.' || *end == 'e' || *end == 'E' || *end == '+' || *end == '-' || (*end >= '0' && *end <= '9'))) {
++        ++end;
 +    }
++    if (start == end) return false;
++    std::string token(start, end);
++    std::istringstream iss(token);
++    iss.imbue(std::locale::classic());
++    if (!(iss >> v) || !iss.eof() || !std::isfinite(v)) return false;
+     c.p = end;
      return true;
++#endif
  }
  
-@@ -147,25 +156,29 @@ namespace {
+ bool positive_seconds(double v) { return std::isfinite(v) && v > 0.0 && v <= 1e6; }
+@@ -147,25 +166,29 @@ namespace {
  
  std::string format_vad_json(const VadRequest& req, double total, double frame_sec,
                              const std::vector<float>& p, const std::vector<VadSegment>& segs) {
