@@ -55,7 +55,7 @@ index 4509259..a296968 100644
  
  namespace pk {
  
-@@ -39,16 +45,39 @@ void append_json_int(std::string& out, int v) {
+@@ -39,16 +45,41 @@ void append_json_int(std::string& out, int v) {
      out += buf;
  }
  
@@ -81,16 +81,18 @@ index 4509259..a296968 100644
 +        long p = std::strtol(fmt + 2, &end, 10);
 +        if (end && *end == 'f') prec = (int)p;
 +    }
++#if defined(__cpp_lib_to_chars)
 +    char buf[64];
 +    auto res = std::to_chars(buf, buf + sizeof(buf), v, std::chars_format::fixed, prec);
 +    if (res.ec == std::errc()) {
 +        out.append(buf, res.ptr - buf);
-+    } else {
-+        std::ostringstream oss;
-+        oss.imbue(std::locale::classic());
-+        oss << std::fixed << std::setprecision(prec) << v;
-+        out += oss.str();
++        return;
 +    }
++#endif
++    std::ostringstream oss;
++    oss.imbue(std::locale::classic());
++    oss << std::fixed << std::setprecision(prec) << v;
++    out += oss.str();
 +}
 +
 +void append_json_float(std::string& out, const char* fmt, float v) {
