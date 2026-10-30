@@ -123,66 +123,88 @@ public class ParakeetVadIntegrationTest extends ParakeetIntegrationTest {
         int lcNumeric = os.contains("mac") || os.contains("darwin") || os.contains("win") ? 4 : 1;
         int lcAll = os.contains("mac") || os.contains("darwin") || os.contains("win") ? 0 : 6;
 
+        MemorySegment origLcNumeric = setLocaleFn.apply(lcNumeric, MemorySegment.NULL);
+        String origNumeric =
+                (origLcNumeric != null
+                                && !origLcNumeric.equals(MemorySegment.NULL)
+                                && origLcNumeric.address() != 0)
+                        ? origLcNumeric.reinterpret(Long.MAX_VALUE).getUtf8String(0)
+                        : null;
+
+        MemorySegment origLcAll = setLocaleFn.apply(lcAll, MemorySegment.NULL);
+        String origAll =
+                (origLcAll != null
+                                && !origLcAll.equals(MemorySegment.NULL)
+                                && origLcAll.address() != 0)
+                        ? origLcAll.reinterpret(Long.MAX_VALUE).getUtf8String(0)
+                        : null;
+
         try (Arena arena = Arena.ofConfined()) {
-            MemorySegment deLocale = arena.allocateUtf8String("de_DE.UTF-8");
-            MemorySegment prevNumeric = setLocaleFn.apply(lcNumeric, deLocale);
-            MemorySegment prevAll = setLocaleFn.apply(lcAll, deLocale);
+            try {
+                MemorySegment deLocale = arena.allocateUtf8String("de_DE.UTF-8");
+                MemorySegment resNumeric = setLocaleFn.apply(lcNumeric, deLocale);
+                MemorySegment resAll = setLocaleFn.apply(lcAll, deLocale);
 
-            boolean deLocaleSet =
-                    (prevNumeric != null
-                                    && !prevNumeric.equals(MemorySegment.NULL)
-                                    && prevNumeric.address() != 0)
-                            || (prevAll != null
-                                    && !prevAll.equals(MemorySegment.NULL)
-                                    && prevAll.address() != 0);
+                boolean deLocaleSet =
+                        (resNumeric != null
+                                        && !resNumeric.equals(MemorySegment.NULL)
+                                        && resNumeric.address() != 0)
+                                || (resAll != null
+                                        && !resAll.equals(MemorySegment.NULL)
+                                        && resAll.address() != 0);
 
-            Assumptions.assumeTrue(
-                    deLocaleSet, "de_DE.UTF-8 locale is not available on this system");
+                Assumptions.assumeTrue(
+                        deLocaleSet, "de_DE.UTF-8 locale is not available on this system");
 
-            try (ParakeetModel vad = Parakeet.loadModel(vadModelPath)) {
-                assertEquals(ModelKind.VAD, vad.kind());
+                try (ParakeetModel vad = Parakeet.loadModel(vadModelPath)) {
+                    assertEquals(ModelKind.VAD, vad.kind());
 
-                VadOptions options =
-                        VadOptions.builder()
-                                .threshold(0.5)
-                                .minPause(0.3)
-                                .minSpeech(0.2)
-                                .speechPad(0.1)
-                                .build();
+                    VadOptions options =
+                            VadOptions.builder()
+                                    .threshold(0.5)
+                                    .minPause(0.3)
+                                    .minSpeech(0.2)
+                                    .speechPad(0.1)
+                                    .build();
 
-                VadResult res = vad.detectSpeech(audioPath, options);
-                assertNotNull(res);
-                assertEquals("speech", res.mode());
-                assertTrue(res.duration() > 0.0);
-                assertFalse(res.segments().isEmpty(), "Should detect speech in audio file");
+                    VadResult res = vad.detectSpeech(audioPath, options);
+                    assertNotNull(res);
+                    assertEquals("speech", res.mode());
+                    assertTrue(res.duration() > 0.0);
+                    assertFalse(res.segments().isEmpty(), "Should detect speech in audio file");
 
-                for (VadSegment seg : res.segments()) {
-                    assertTrue(seg.start() >= 0.0);
-                    assertTrue(seg.end() <= res.duration() + 0.1);
-                    assertTrue(seg.start() < seg.end());
-                }
-
-                float[] pcm = readWavMono16k(audioPath);
-                try (VadStream vs = vad.startVadStream(16000, options)) {
-                    int chunkSize = 1600; // 100 ms
-                    int eventCount = 0;
-                    for (int offset = 0; offset < pcm.length; offset += chunkSize) {
-                        int len = Math.min(chunkSize, pcm.length - offset);
-                        boolean isLast = (offset + len >= pcm.length);
-                        float[] chunk = new float[len];
-                        System.arraycopy(pcm, offset, chunk, 0, len);
-                        VadStreamResult sRes = vs.feed(chunk, isLast);
-                        assertNotNull(sRes);
-                        assertTrue(sRes.frameSec() > 0.0);
-                        eventCount += sRes.events().size();
+                    for (VadSegment seg : res.segments()) {
+                        assertTrue(seg.start() >= 0.0);
+                        assertTrue(seg.end() <= res.duration() + 0.1);
+                        assertTrue(seg.start() < seg.end());
                     }
-                    assertTrue(
-                            eventCount > 0, "VAD stream should emit speech start/end" + " events");
+
+                    float[] pcm = readWavMono16k(audioPath);
+                    try (VadStream vs = vad.startVadStream(16000, options)) {
+                        int chunkSize = 1600; // 100 ms
+                        int eventCount = 0;
+                        for (int offset = 0; offset < pcm.length; offset += chunkSize) {
+                            int len = Math.min(chunkSize, pcm.length - offset);
+                            boolean isLast = (offset + len >= pcm.length);
+                            float[] chunk = new float[len];
+                            System.arraycopy(pcm, offset, chunk, 0, len);
+                            VadStreamResult sRes = vs.feed(chunk, isLast);
+                            assertNotNull(sRes);
+                            assertTrue(sRes.frameSec() > 0.0);
+                            eventCount += sRes.events().size();
+                        }
+                        assertTrue(
+                                eventCount > 0,
+                                "VAD stream should emit speech start/end" + " events");
+                    }
                 }
             } finally {
-                MemorySegment cLocale = arena.allocateUtf8String("C");
-                setLocaleFn.apply(lcAll, cLocale);
-                setLocaleFn.apply(lcNumeric, cLocale);
+                if (origAll != null) {
+                    setLocaleFn.apply(lcAll, arena.allocateUtf8String(origAll));
+                }
+                if (origNumeric != null) {
+                    setLocaleFn.apply(lcNumeric, arena.allocateUtf8String(origNumeric));
+                }
             }
         }
     }
