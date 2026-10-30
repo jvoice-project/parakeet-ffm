@@ -8,6 +8,23 @@ if(NOT EXISTS "${PARAKEET_SUBMODULE_DIR}/CMakeLists.txt")
     message(FATAL_ERROR "parakeet.cpp submodule not initialized. Run: git submodule update --init --recursive")
 endif()
 
+# Apply patches to parakeet.cpp submodule
+set(PARAKEET_SRC_DIR "${CMAKE_CURRENT_BINARY_DIR}/parakeet_patched/parakeet")
+
+# Copy parakeet.cpp source to build directory to apply patches without modifying source tree
+file(REMOVE_RECURSE "${PARAKEET_SRC_DIR}")
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/parakeet" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/parakeet_patched" PATTERN ".git" EXCLUDE)
+
+# Apply patch
+execute_process(
+    COMMAND patch -p1 -i "${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/parakeet.patch"
+    WORKING_DIRECTORY "${PARAKEET_SRC_DIR}"
+    RESULT_VARIABLE patch_result
+)
+if(NOT patch_result EQUAL 0)
+    message(FATAL_ERROR "Failed to apply patch to parakeet source")
+endif()
+
 option(PARAKEET_GGML_CUDA   "Forward GGML_CUDA" OFF)
 option(PARAKEET_GGML_VULKAN "Forward GGML_VULKAN" OFF)
 option(PARAKEET_GGML_HIP    "Forward GGML_HIP (ROCm)" OFF)
@@ -50,7 +67,7 @@ elseif(NOT APPLE)
 endif()
 
 ExternalProject_Add(parakeet_cpp
-    SOURCE_DIR     "${PARAKEET_SUBMODULE_DIR}"
+    SOURCE_DIR     "${PARAKEET_SRC_DIR}"
     CMAKE_ARGS     ${PARAKEET_CMAKE_ARGS}
     BUILD_ALWAYS   1
     INSTALL_COMMAND ""

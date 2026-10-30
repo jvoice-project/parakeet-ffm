@@ -1,0 +1,183 @@
+--- a/src/parakeet_capi.cpp
++++ b/src/parakeet_capi.cpp
+@@ -912,21 +912,25 @@
+             s->tracker->finish((double)s->samples / (double)s->sample_rate, &ev);
+             s->finished = true;
+         }
+-        char buf[96];
+-        std::snprintf(buf, sizeof(buf), "{\"frame_sec\":%.3f,\"first_frame\":%lld,\"events\":[",
+-                      pk::kSileroFrameSec, first);
+-        std::string j = buf;
++        std::string j = "{\"frame_sec\":";
++        pk::append_json_float(j, "%.3f", pk::kSileroFrameSec);
++        j += ",\"first_frame\":";
++        j += std::to_string(first);
++        j += ",\"events\":[";
+         for (size_t i = 0; i < ev.size(); ++i) {
+-            std::snprintf(buf, sizeof(buf), "%s{\"type\":\"%s\",\"time\":%.3f}", i ? "," : "",
+-                          ev[i].start ? "start" : "end", ev[i].time);
+-            j += buf;
++            if (i) j += ',';
++            j += "{\"type\":\"";
++            j += (ev[i].start ? "start" : "end");
++            j += "\",\"time\":";
++            pk::append_json_float(j, "%.3f", ev[i].time);
++            j += '}';
+         }
+         j += ']';
+         if (s->probabilities) {
+             j += ",\"probabilities\":[";
+             for (size_t i = 0; i < probs.size(); ++i) {
+-                std::snprintf(buf, sizeof(buf), "%s%.4f", i ? "," : "", (double)probs[i]);
+-                j += buf;
++                if (i) j += ',';
++                pk::append_json_float(j, "%.4f", probs[i]);
+             }
+             j += ']';
+         }
+--- a/src/transcription_json.cpp
++++ b/src/transcription_json.cpp
+@@ -1,6 +1,7 @@
+ #include "transcription_json.hpp"
+ #include "model.hpp"
+ 
++#include <cmath>
+ #include <cstdio>
+ 
+ namespace pk {
+@@ -39,16 +40,33 @@
+     out += buf;
+ }
+ 
+-// Append a float to `out` formatted with `fmt` (e.g. "%.3f"). NaN/Inf are
+-// emitted as 0 (JSON has no NaN/Inf literal); confidences/times are finite here.
+-void append_json_float(std::string& out, const char* fmt, float v) {
+-    char buf[32];
+-    if (!(v == v) || v > 1e30f || v < -1e30f) {  // NaN or huge -> 0
++// Append a floating-point number to `out` formatted with `fmt` (e.g. "%.3f")
++// using decimal point regardless of the active locale. NaN/Inf are emitted as 0
++// (JSON has no NaN/Inf literal); confidences/times are finite here.
++template <typename T>
++static void append_json_fp(std::string& out, const char* fmt, T v) {
++    if (!std::isfinite(v) || v > 1e30 || v < -1e30) {  // NaN or huge -> 0
+         out += '0';
+         return;
+     }
+-    std::snprintf(buf, sizeof(buf), fmt, v);
+-    out += buf;
++    char buf[64];
++    int n = std::snprintf(buf, sizeof(buf), fmt, (double)v);
++    if (n > 0) {
++        for (int i = 0; i < n && i < (int)sizeof(buf); ++i) {
++            if (buf[i] == ',') buf[i] = '.';
++        }
++        out.append(buf, n);
++    } else {
++        out += '0';
++    }
++}
++
++void append_json_float(std::string& out, const char* fmt, float v) {
++    append_json_fp(out, fmt, v);
++}
++
++void append_json_float(std::string& out, const char* fmt, double v) {
++    append_json_fp(out, fmt, v);
+ }
+ 
+ // Serialize a pk::Transcription to the C-API JSON document (see the header doc
+--- a/src/transcription_json.hpp
++++ b/src/transcription_json.hpp
+@@ -12,6 +12,7 @@
+ void append_json_string(std::string& out, const std::string& s);
+ void append_json_int(std::string& out, int v);
+ void append_json_float(std::string& out, const char* fmt, float v);
++void append_json_float(std::string& out, const char* fmt, double v);
+ 
+ // Serialize a Transcription to the C-API JSON document shape:
+ // {"text", "frame_sec", "words", "tokens"} and, when a word filter ran,
+--- a/src/vad_json.cpp
++++ b/src/vad_json.cpp
+@@ -1,9 +1,13 @@
+ #include "vad_json.hpp"
++#include "transcription_json.hpp"
+ 
++#include <charconv>
+ #include <cmath>
+ #include <cstdio>
+ #include <cstdlib>
+ #include <cstring>
++#include <locale>
++#include <sstream>
+ #include <stdexcept>
+ 
+ #include "backend.hpp"
+@@ -36,11 +40,26 @@
+ }
+ 
+ bool parse_number(Cursor& c, double& v) {
+-    char* end = nullptr;
+-    v = std::strtod(c.p, &end);
+-    if (end == c.p || !std::isfinite(v)) return false;
++#if defined(__cpp_lib_to_chars) && !defined(_LIBCPP_VERSION)
++    auto [ptr, ec] = std::from_chars(c.p, c.p + std::strlen(c.p), v);
++    if (ec != std::errc() || !std::isfinite(v)) return false;
++    c.p = ptr;
++    return true;
++#else
++    const char* start = c.p;
++    const char* end = start;
++    if (*end == '-' || *end == '+') ++end;
++    while (*end && (*end == '.' || *end == 'e' || *end == 'E' || *end == '+' || *end == '-' || (*end >= '0' && *end <= '9'))) {
++        ++end;
++    }
++    if (start == end) return false;
++    std::string token(start, end);
++    std::istringstream iss(token);
++    iss.imbue(std::locale::classic());
++    if (!(iss >> v) || !iss.eof() || !std::isfinite(v)) return false;
+     c.p = end;
+     return true;
++#endif
+ }
+ 
+ bool positive_seconds(double v) { return std::isfinite(v) && v > 0.0 && v <= 1e6; }
+@@ -147,25 +166,29 @@
+ 
+ std::string format_vad_json(const VadRequest& req, double total, double frame_sec,
+                             const std::vector<float>& p, const std::vector<VadSegment>& segs) {
+-    char buf[64];
+     std::string j = "{\"mode\":\"";
+     j += req.mode == VadRequest::Mode::kSpeech ? "speech" : "segments";
+-    std::snprintf(buf, sizeof(buf), "\",\"duration\":%.3f,\"frame_sec\":%.3f,\"backend\":\"",
+-                  total, frame_sec);
+-    j += buf;
++    j += "\",\"duration\":";
++    append_json_float(j, "%.3f", total);
++    j += ",\"frame_sec\":";
++    append_json_float(j, "%.3f", frame_sec);
++    j += ",\"backend\":\"";
+     j += pk::global_backend().device_name();
+     j += "\",\"segments\":[";
+     for (size_t i = 0; i < segs.size(); ++i) {
+-        std::snprintf(buf, sizeof(buf), "%s{\"start\":%.3f,\"end\":%.3f}", i ? "," : "",
+-                      segs[i].start, segs[i].end);
+-        j += buf;
++        if (i) j += ',';
++        j += "{\"start\":";
++        append_json_float(j, "%.3f", segs[i].start);
++        j += ",\"end\":";
++        append_json_float(j, "%.3f", segs[i].end);
++        j += '}';
+     }
+     j += ']';
+     if (req.probabilities) {
+         j += ",\"probabilities\":[";
+         for (size_t i = 0; i < p.size(); ++i) {
+-            std::snprintf(buf, sizeof(buf), "%s%.4f", i ? "," : "", (double)p[i]);
+-            j += buf;
++            if (i) j += ',';
++            append_json_float(j, "%.4f", p[i]);
+         }
+         j += ']';
+     }
