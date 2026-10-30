@@ -1,8 +1,6 @@
-diff --git a/src/parakeet_capi.cpp b/src/parakeet_capi.cpp
-index 30a9454..23840d9 100644
 --- a/src/parakeet_capi.cpp
 +++ b/src/parakeet_capi.cpp
-@@ -912,21 +912,25 @@ extern "C" char* parakeet_capi_vad_stream_feed_json(parakeet_vad_stream* s, cons
+@@ -912,21 +912,25 @@
              s->tracker->finish((double)s->samples / (double)s->sample_rate, &ev);
              s->finished = true;
          }
@@ -37,25 +35,17 @@ index 30a9454..23840d9 100644
              }
              j += ']';
          }
-diff --git a/src/transcription_json.cpp b/src/transcription_json.cpp
-index 4509259..a296968 100644
 --- a/src/transcription_json.cpp
 +++ b/src/transcription_json.cpp
-@@ -1,7 +1,13 @@
+@@ -1,6 +1,7 @@
  #include "transcription_json.hpp"
  #include "model.hpp"
  
-+#include <charconv>
 +#include <cmath>
  #include <cstdio>
-+#include <cstdlib>
-+#include <iomanip>
-+#include <locale>
-+#include <sstream>
  
  namespace pk {
- 
-@@ -39,16 +45,41 @@ void append_json_int(std::string& out, int v) {
+@@ -39,16 +40,33 @@
      out += buf;
  }
  
@@ -75,24 +65,16 @@ index 4509259..a296968 100644
      }
 -    std::snprintf(buf, sizeof(buf), fmt, v);
 -    out += buf;
-+    int prec = 3;
-+    if (fmt && fmt[0] == '%' && fmt[1] == '.') {
-+        char* end = nullptr;
-+        long p = std::strtol(fmt + 2, &end, 10);
-+        if (end && *end == 'f') prec = (int)p;
-+    }
-+#if defined(__cpp_lib_to_chars)
 +    char buf[64];
-+    auto res = std::to_chars(buf, buf + sizeof(buf), v, std::chars_format::fixed, prec);
-+    if (res.ec == std::errc()) {
-+        out.append(buf, res.ptr - buf);
-+        return;
++    int n = std::snprintf(buf, sizeof(buf), fmt, (double)v);
++    if (n > 0) {
++        for (int i = 0; i < n && i < (int)sizeof(buf); ++i) {
++            if (buf[i] == ',') buf[i] = '.';
++        }
++        out.append(buf, n);
++    } else {
++        out += '0';
 +    }
-+#endif
-+    std::ostringstream oss;
-+    oss.imbue(std::locale::classic());
-+    oss << std::fixed << std::setprecision(prec) << v;
-+    out += oss.str();
 +}
 +
 +void append_json_float(std::string& out, const char* fmt, float v) {
@@ -104,11 +86,9 @@ index 4509259..a296968 100644
  }
  
  // Serialize a pk::Transcription to the C-API JSON document (see the header doc
-diff --git a/src/transcription_json.hpp b/src/transcription_json.hpp
-index 0413572..2e30d49 100644
 --- a/src/transcription_json.hpp
 +++ b/src/transcription_json.hpp
-@@ -12,6 +12,7 @@ struct NBestTranscription;
+@@ -12,6 +12,7 @@
  void append_json_string(std::string& out, const std::string& s);
  void append_json_int(std::string& out, int v);
  void append_json_float(std::string& out, const char* fmt, float v);
@@ -116,8 +96,6 @@ index 0413572..2e30d49 100644
  
  // Serialize a Transcription to the C-API JSON document shape:
  // {"text", "frame_sec", "words", "tokens"} and, when a word filter ran,
-diff --git a/src/vad_json.cpp b/src/vad_json.cpp
-index 4fa3cb3..2256888 100644
 --- a/src/vad_json.cpp
 +++ b/src/vad_json.cpp
 @@ -1,9 +1,13 @@
@@ -134,7 +112,7 @@ index 4fa3cb3..2256888 100644
  #include <stdexcept>
  
  #include "backend.hpp"
-@@ -36,11 +40,26 @@ bool parse_string(Cursor& c, std::string& out) {
+@@ -36,11 +40,26 @@
  }
  
  bool parse_number(Cursor& c, double& v) {
@@ -164,7 +142,7 @@ index 4fa3cb3..2256888 100644
  }
  
  bool positive_seconds(double v) { return std::isfinite(v) && v > 0.0 && v <= 1e6; }
-@@ -147,25 +166,29 @@ namespace {
+@@ -147,25 +166,29 @@
  
  std::string format_vad_json(const VadRequest& req, double total, double frame_sec,
                              const std::vector<float>& p, const std::vector<VadSegment>& segs) {
