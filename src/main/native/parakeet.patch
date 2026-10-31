@@ -98,44 +98,39 @@
  // {"text", "frame_sec", "words", "tokens"} and, when a word filter ran,
 --- a/src/vad_json.cpp
 +++ b/src/vad_json.cpp
-@@ -1,9 +1,13 @@
+@@ -1,5 +1,8 @@
  #include "vad_json.hpp"
 +#include "transcription_json.hpp"
  
 +#include <charconv>
++#include <clocale>
  #include <cmath>
  #include <cstdio>
  #include <cstdlib>
- #include <cstring>
-+#include <locale>
-+#include <sstream>
- #include <stdexcept>
- 
- #include "backend.hpp"
-@@ -36,11 +40,26 @@
+@@ -36,11 +39,28 @@
  }
  
  bool parse_number(Cursor& c, double& v) {
--    char* end = nullptr;
--    v = std::strtod(c.p, &end);
--    if (end == c.p || !std::isfinite(v)) return false;
 +#if defined(__cpp_lib_to_chars) && !defined(_LIBCPP_VERSION)
 +    auto [ptr, ec] = std::from_chars(c.p, c.p + std::strlen(c.p), v);
 +    if (ec != std::errc() || !std::isfinite(v)) return false;
 +    c.p = ptr;
 +    return true;
++#elif defined(_WIN32)
++    _locale_t cloc = _create_locale(LC_ALL, "C");
++    char* end = nullptr;
++    v = _strtod_l(c.p, &end, cloc);
++    _free_locale(cloc);
++    if (end == c.p || !std::isfinite(v)) return false;
++    c.p = end;
++    return true;
 +#else
-+    const char* start = c.p;
-+    const char* end = start;
-+    if (*end == '-' || *end == '+') ++end;
-+    while (*end && (*end == '.' || *end == 'e' || *end == 'E' || *end == '+' || *end == '-' || (*end >= '0' && *end <= '9'))) {
-+        ++end;
-+    }
-+    if (start == end) return false;
-+    std::string token(start, end);
-+    std::istringstream iss(token);
-+    iss.imbue(std::locale::classic());
-+    if (!(iss >> v) || !iss.eof() || !std::isfinite(v)) return false;
++    locale_t cloc = newlocale(LC_ALL_MASK, "C", (locale_t)0);
+     char* end = nullptr;
+-    v = std::strtod(c.p, &end);
++    v = strtod_l(c.p, &end, cloc);
++    freelocale(cloc);
+     if (end == c.p || !std::isfinite(v)) return false;
      c.p = end;
      return true;
 +#endif
