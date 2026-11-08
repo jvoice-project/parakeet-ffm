@@ -49,19 +49,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - name: Setup Cache
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
-      - name: Setup Java
-        uses: actions/setup-java@v6.1.0
-        with:
-          distribution: ${{ env.JAVA_DISTRO }}
-          java-version: ${{ env.JAVA_VERSION }}
       # --- Linux Build Logic ---
       - name: Docker Setup Buildx
         if: runner.os == 'Linux'
@@ -73,6 +60,7 @@ jobs:
             --platform ${{ matrix.platform }} \
             --target export \
             --output type=local,dest=dist/lib/ \
+            --file scripts/Dockerfile \
             .
       # --- macOS Build Logic ---
       - name: Build (macOS)
@@ -80,9 +68,9 @@ jobs:
         run: |
           mkdir -p dist/lib
           if [ "${{ matrix.arch }}" = "x86_64" ]; then
-            arch -x86_64 ./build_macos.sh x86_64
+            arch -x86_64 ./scripts/build_macos.sh x86_64
           else
-            ./build_macos.sh ${{ matrix.arch }}
+            ./scripts/build_macos.sh ${{ matrix.arch }}
           fi
           mv src/main/resources/native/${{ matrix.target }}/*.dylib dist/lib/
       # --- Windows Build Logic ---
@@ -91,7 +79,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop' # Forces exit on error
-          .\build_win.cmd
+          .\scripts\build_win.cmd
           if (!(Test-Path dist)) { mkdir dist }
           if (!(Test-Path dist\lib)) { mkdir dist\lib }
           move-item src\main\resources\native\${{ matrix.target }}\*.dll .\dist\lib\

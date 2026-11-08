@@ -15,6 +15,8 @@ case $AARCH in
         exit 1 ;;
 esac
 
+SOURCE_DIR="src/main/native"
+BUILD_DIR="target/native-build"
 TARGET_DIR="src/main/resources/native/linux-$FFM_ARCH"
 
 if [ ! -f "src/main/native/parakeet/CMakeLists.txt" ]; then
@@ -22,6 +24,10 @@ if [ ! -f "src/main/native/parakeet/CMakeLists.txt" ]; then
     git submodule update --init --recursive
 fi
 
-cmake -Bbuild -DCMAKE_INSTALL_PREFIX="$TARGET_DIR" "${@:2}"
-cmake --build build --config Release -j$(nproc)
-cmake --install build
+cmake -S "$SOURCE_DIR" \
+      -B "$BUILD_DIR" \
+      -DCMAKE_INSTALL_PREFIX="$TARGET_DIR" \
+      "${@:2}"
+
+cmake --build "$BUILD_DIR" --config Release -j$(nproc)
+cmake --install "$BUILD_DIR"

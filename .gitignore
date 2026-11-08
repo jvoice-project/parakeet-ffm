@@ -3,10 +3,9 @@
 .idea/
 *.iml
 
-# Java build artefacts
+# CMake & Java build artefacts
 target/
 # Native build artefacts
-build/
 src/main/resources/native/linux-*
 src/main/resources/native/macos-*
 src/main/resources/native/windows-*

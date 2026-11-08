@@ -19,6 +19,8 @@ case "$AARCH" in
     ;;
 esac
 
+SOURCE_DIR="src/main/native"
+BUILD_DIR="target/native-build"
 TARGET_DIR="src/main/resources/native/macos-$FFM_ARCH"
 
 if [ ! -f "src/main/native/parakeet/CMakeLists.txt" ]; then
@@ -26,6 +28,11 @@ if [ ! -f "src/main/native/parakeet/CMakeLists.txt" ]; then
     git submodule update --init --recursive
 fi
 
-cmake -Bbuild -DCMAKE_INSTALL_PREFIX="$TARGET_DIR" -DCMAKE_OSX_DEPLOYMENT_TARGET=$TARGET_VERSION -DCMAKE_OSX_ARCHITECTURES=$AARCH
-cmake --build build --config Release
-cmake --install build
+cmake -S "$SOURCE_DIR" \
+      -B "$BUILD_DIR" \
+      -DCMAKE_INSTALL_PREFIX="$TARGET_DIR" \
+      -DCMAKE_OSX_DEPLOYMENT_TARGET=$TARGET_VERSION -DCMAKE_OSX_ARCHITECTURES=$AARCH \
+      "${@:2}"
+
+cmake --build "$BUILD_DIR" --config Release -j $(sysctl -n hw.ncpu)
+cmake --install "$BUILD_DIR"
