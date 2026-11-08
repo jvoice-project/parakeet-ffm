@@ -200,9 +200,9 @@ git submodule update --init --recursive
 
 Compile `libparakeet` and install it into `src/main/resources/native/`:
 
-- **Linux:** Run `./build_linux.sh`
-- **macOS:** Run `./build_macos.sh`
-- **Windows:** Run `.\build_win.cmd`
+- **Linux:** Run `./scripts/build_linux.sh`
+- **macOS:** Run `./scripts/build_macos.sh`
+- **Windows:** Run `.\scripts\build_win.cmd`
 
 For building with specific hardware acceleration backends (CUDA, Vulkan, Metal) and detailed configuration options, see [BUILD.md](BUILD.md).
 
@@ -211,7 +211,7 @@ For building with specific hardware acceleration backends (CUDA, Vulkan, Metal) 
 To build portable Linux libraries (`amd64`, `arm64`) with GLIBC 2.31 compatibility using Docker Buildx:
 
 ```shell
-./build_linux-all.sh
+./scripts/build_linux-all.sh
 ```
 
 ### Using a Custom Native Library

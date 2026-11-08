@@ -82,38 +82,38 @@ You can build the native library using the provided build scripts or directly vi
 
 ### Linux
 
-The helper script `./build_linux.sh` automatically detects the architecture, initializes submodules, and installs the output into `src/main/resources/native/linux-<arch>/`:
+The helper script `./scripts/build_linux.sh` automatically detects the architecture, initializes submodules, and installs the output into `src/main/resources/native/linux-<arch>/`:
 
 ```bash
 # CPU build (portable):
-./build_linux.sh
+./scripts/build_linux.sh
 
 # CPU build optimized for current host CPU:
-./build_linux.sh x86_64 -DGGML_NATIVE=ON
+./scripts/build_linux.sh x86_64 -DGGML_NATIVE=ON
 
 # Vulkan build:
-./build_linux.sh x86_64 -DPARAKEET_GGML_VULKAN=ON
+./scripts/build_linux.sh x86_64 -DPARAKEET_GGML_VULKAN=ON
 
 # CUDA build:
-./build_linux.sh x86_64 -DPARAKEET_GGML_CUDA=ON
+./scripts/build_linux.sh x86_64 -DPARAKEET_GGML_CUDA=ON
 ```
 
 ---
 
 ### Windows
 
-The helper script `build_win.cmd` automatically detects initializes submodules and installs the output into `src/main/resources/native/windows-<arch>/`.
+The helper script `scripts\build_win.cmd` automatically detects initializes submodules and installs the output into `src/main/resources/native/windows-<arch>/`.
 Open a **Developer Command Prompt for Visual Studio** (or Developer PowerShell):
 
 ```cmd
 :: CPU build (portable)
-build_win.cmd x86-64
+scripts\build_win.cmd x86-64
 
 :: Vulkan build
-build_win.cmd x86-64 -DPARAKEET_GGML_VULKAN=ON
+scripts\build_win.cmd x86-64 -DPARAKEET_GGML_VULKAN=ON
 
 :: CUDA build
-build_win.cmd x86-64 -DPARAKEET_GGML_CUDA=ON
+scripts\build_win.cmd x86-64 -DPARAKEET_GGML_CUDA=ON
 ```
 
 ---
@@ -128,10 +128,10 @@ The build system automatically enables Metal acceleration when building for Appl
 
 ```bash
 # macOS Apple Silicon (arm64): Metal acceleration is enabled automatically
-./build_macos.sh arm64
+./scripts/build_macos.sh arm64
 
 # macOS Intel (x86_64): Builds with CPU backend automatically
-./build_macos.sh x86_64
+./scripts/build_macos.sh x86_64
 ```
 
 The resulting library is installed into:
