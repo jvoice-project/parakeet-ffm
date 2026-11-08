@@ -61,9 +61,21 @@ if(PARAKEET_GGML_HIP)
 endif()
 
 if(MSVC)
+    # Static compile time linkage for MSVC Redistributable
     list(APPEND PARAKEET_CMAKE_ARGS -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded)
-elseif(NOT APPLE)
-    list(APPEND PARAKEET_CMAKE_ARGS "-DCMAKE_SHARED_LINKER_FLAGS=-static-libgcc -static-libstdc++")
+endif()
+
+# Linux symbol isolation and static compile time linkage for libgcc & libstdc++
+if(NOT WIN32 AND NOT APPLE)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/parakeet.version")
+        message(FATAL_ERROR "Missing parakeet linker version script")
+    endif()
+
+    set(PARAKEET_LINKER_FLAGS "-static-libgcc -static-libstdc++ -Wl,--exclude-libs,ALL -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/parakeet.version")
+
+    list(APPEND PARAKEET_CMAKE_ARGS
+        "-DCMAKE_SHARED_LINKER_FLAGS=${PARAKEET_LINKER_FLAGS}"
+    )
 endif()
 
 ExternalProject_Add(parakeet_cpp
