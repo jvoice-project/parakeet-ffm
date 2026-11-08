@@ -49,19 +49,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - name: Setup Cache
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
-      - name: Setup Java
-        uses: actions/setup-java@v6.1.0
-        with:
-          distribution: ${{ env.JAVA_DISTRO }}
-          java-version: ${{ env.JAVA_VERSION }}
       # --- Linux Build Logic ---
       - name: Docker Setup Buildx
         if: runner.os == 'Linux'
