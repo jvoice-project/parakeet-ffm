@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.18)
 project(parakeet4-ffm C CXX)
 include(ExternalProject)
 
-set(PARAKEET_SUBMODULE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/parakeet")
+set(PARAKEET_SUBMODULE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/parakeet")
 
 if(NOT EXISTS "${PARAKEET_SUBMODULE_DIR}/CMakeLists.txt")
     message(FATAL_ERROR "parakeet.cpp submodule not initialized. Run: git submodule update --init --recursive")
@@ -13,11 +13,11 @@ set(PARAKEET_SRC_DIR "${CMAKE_CURRENT_BINARY_DIR}/parakeet_patched/parakeet")
 
 # Copy parakeet.cpp source to build directory to apply patches without modifying source tree
 file(REMOVE_RECURSE "${PARAKEET_SRC_DIR}")
-file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/parakeet" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/parakeet_patched" PATTERN ".git" EXCLUDE)
+file(COPY "${PARAKEET_SUBMODULE_DIR}" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/parakeet_patched" PATTERN ".git" EXCLUDE)
 
 # Apply patch
 execute_process(
-    COMMAND patch -p1 -i "${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/parakeet.patch"
+    COMMAND patch -p1 -i "${CMAKE_CURRENT_SOURCE_DIR}/parakeet.patch"
     WORKING_DIRECTORY "${PARAKEET_SRC_DIR}"
     RESULT_VARIABLE patch_result
 )
