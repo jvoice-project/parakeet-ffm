@@ -13,8 +13,9 @@ parakeet.cpp is a fast, portable C++ implementation of NVIDIA Parakeet and Nemot
 
 ## Platform Support
 
-Java >= 21 is required.
-Because FFM in Java 21 is a preview feature, `--enable-preview` and native access flag `--enable-native-access=ALL-UNNAMED` (or your module name) are required at compile and run time on Java 21.
+Java == 21 is required.
+Because FFM in Java 21 is a preview feature, `--enable-preview` and native access flag `--enable-native-access=ALL-UNNAMED` (or your module name) are required at compile and run time on Java 21,
+and only Java 21 is supported!
 
 The library aims to support the following platforms:
 
