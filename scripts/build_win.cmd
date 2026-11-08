@@ -3,12 +3,19 @@ if "%AARCH%"=="" set "AARCH=x86-64"
 if "%AARCH%"=="x86_64" set "AARCH=x86-64"
 if "%AARCH%"=="amd64" set "AARCH=x86-64"
 if "%AARCH%"=="arm64" set "AARCH=aarch64"
+
+set SOURCE_DIR=src\main\native
+set BUILD_DIR=target\native-build
 set "TARGET_DIR=src\main\resources\native\windows-%AARCH%"
 
 if not exist "src\main\native\parakeet\CMakeLists.txt" (
     git submodule update --init --recursive
 )
 
-cmake -Bbuild -DCMAKE_INSTALL_PREFIX="%TARGET_DIR%" %2 %3 %4 %5 %6 %7 %8 %9
-cmake --build build --config Release -j %NUMBER_OF_PROCESSORS%
-cmake --install build
+cmake -S %SOURCE_DIR% \
+      -B %BUILD_DIR% \
+      -DCMAKE_INSTALL_PREFIX="%TARGET_DIR%" \
+      %2 %3 %4 %5 %6 %7 %8 %9
+
+cmake --build %BUILD_DIR% --config Release -j %NUMBER_OF_PROCESSORS%
+cmake --install %BUILD_DIR%

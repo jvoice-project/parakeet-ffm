@@ -19,7 +19,8 @@ docker buildx build \
     --platform linux/amd64,linux/arm64 \
     --target export \
     --output "type=local,dest=src/main/resources/tmp" \
-    .
+    --file Dockerfile \
+    ..
 
 # Ensure resource directories exist
 mkdir -p src/main/resources/native/linux-x86-64 src/main/resources/native/linux-aarch64

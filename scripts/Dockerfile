@@ -21,7 +21,7 @@ COPY .git .git
 COPY .gitmodules .gitmodules
 COPY src/main/native/CMakeLists.txt .
 COPY pom.xml .
-COPY build_linux.sh .
+COPY scripts/build_linux.sh .
 COPY src src
 
 ARG TARGETARCH
