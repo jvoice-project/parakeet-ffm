@@ -20,7 +20,7 @@
 package io.github.jvoiceproject.parakeet;
 
 /**
- * Exception thrown when a native Parakeet call or initialization fails.
+ * Exception thrown when a native Parakeet call fails.
  *
  * @author Florian Hotze - Initial contribution
  */

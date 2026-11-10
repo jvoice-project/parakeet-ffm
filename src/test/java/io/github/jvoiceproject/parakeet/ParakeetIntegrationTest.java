@@ -49,7 +49,7 @@ public abstract class ParakeetIntegrationTest {
     protected static Path audioPath;
 
     @BeforeAll
-    static void setUpBase() {
+    static void setUpBase() throws Exception {
         String vadEnv = System.getenv("PARAKEET_VAD_MODEL");
         String audioEnv = System.getenv("TEST_AUDIO");
 
@@ -61,6 +61,8 @@ public abstract class ParakeetIntegrationTest {
 
         assertTrue(Files.exists(vadModelPath), "VAD model file must exist at " + vadModelPath);
         assertTrue(Files.exists(audioPath), "Audio file must exist at " + audioPath);
+
+        Parakeet.loadLibrary();
     }
 
     @Test

@@ -22,18 +22,22 @@ package io.github.jvoiceproject.parakeet;
 import io.github.jvoiceproject.parakeet.internal.NativeLibraryLoader;
 import io.github.jvoiceproject.parakeet.internal.ParakeetBinding;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Unit tests for {@link NativeLibraryLoader} ABI version validation and configuration.
+ * Unit tests for {@link NativeLibraryLoader} ABI version validation, loading, and configuration.
  *
  * @author Florian Hotze - Initial contribution
  */
@@ -46,17 +50,6 @@ public class NativeLibraryLoaderTest {
         fake = new FakeParakeetBinding();
     }
 
-    @AfterEach
-    void tearDown() {
-        NativeLibraryLoader.setInstance(null);
-    }
-
-    @Test
-    void expectedAbiVersionConstantIsTen() {
-        assertEquals(10, Parakeet.EXPECTED_ABI_VERSION);
-        assertEquals(10, ParakeetBinding.EXPECTED_ABI_VERSION);
-    }
-
     @Test
     void validateAbiVersionSucceedsWithExpectedVersion() {
         fake.abiVersion = 10;
@@ -66,9 +59,9 @@ public class NativeLibraryLoaderTest {
     @Test
     void validateAbiVersionFailsWithOutdatedVersion() {
         fake.abiVersion = 9;
-        ParakeetException ex =
+        LinkageError ex =
                 assertThrows(
-                        ParakeetException.class,
+                        LinkageError.class,
                         () ->
                                 NativeLibraryLoader.validateAbiVersion(
                                         fake, "/path/to/libparakeet.so"));
@@ -86,9 +79,9 @@ public class NativeLibraryLoaderTest {
     @Test
     void validateAbiVersionFailsWithNewerVersion() {
         fake.abiVersion = 11;
-        ParakeetException ex =
+        LinkageError ex =
                 assertThrows(
-                        ParakeetException.class,
+                        LinkageError.class,
                         () -> NativeLibraryLoader.validateAbiVersion(fake, "custom.so"));
         assertTrue(ex.getMessage().contains("expected 10, got 11"));
     }
@@ -103,31 +96,77 @@ public class NativeLibraryLoaderTest {
                     }
                 };
 
-        ParakeetException ex =
+        LinkageError ex =
                 assertThrows(
-                        ParakeetException.class,
+                        LinkageError.class,
                         () -> NativeLibraryLoader.validateAbiVersion(failingBinding, "corrupt.so"));
         assertTrue(ex.getMessage().contains("Failed to query parakeet ABI version"));
     }
 
     @Test
-    void setInstanceValidatesAbiVersion() {
-        fake.abiVersion = 10;
-        NativeLibraryLoader.setInstance(fake);
-        assertEquals(10, Parakeet.abiVersion());
-
-        fake.abiVersion = 8;
-        assertThrows(ParakeetException.class, () -> NativeLibraryLoader.setInstance(fake));
+    void loadSucceedsWithBundledLibrary() throws IOException {
+        ParakeetBinding binding = NativeLibraryLoader.load();
+        assertNotNull(binding);
+        assertEquals(ParakeetBinding.EXPECTED_ABI_VERSION, binding.parakeet_capi_abi_version());
     }
 
     @Test
-    void setInstanceNullClearsInstance() {
-        fake.abiVersion = 10;
-        NativeLibraryLoader.setInstance(fake);
-        NativeLibraryLoader.setInstance(null);
-        // After clearing, getInstance() will reload the bundled library
-        ParakeetBinding reloaded = NativeLibraryLoader.getInstance();
-        assertNotNull(reloaded);
-        assertEquals(10, reloaded.parakeet_capi_abi_version());
+    void loadFailsWithUnsupportedOperationExceptionOnUnsupportedOs() {
+        String originalOs = System.getProperty("os.name");
+        try {
+            System.setProperty("os.name", "Solaris");
+            UnsupportedOperationException ex =
+                    assertThrows(UnsupportedOperationException.class, NativeLibraryLoader::load);
+            assertTrue(ex.getMessage().contains("Unsupported operating system: solaris"));
+        } finally {
+            System.setProperty("os.name", originalOs);
+        }
+    }
+
+    @Test
+    void loadFailsWithUnsupportedOperationExceptionOnUnsupportedArch() {
+        String originalArch = System.getProperty("os.arch");
+        try {
+            System.setProperty("os.arch", "mips");
+            UnsupportedOperationException ex =
+                    assertThrows(UnsupportedOperationException.class, NativeLibraryLoader::load);
+            assertTrue(ex.getMessage().contains("Unsupported architecture: mips"));
+        } finally {
+            System.setProperty("os.arch", originalArch);
+        }
+    }
+
+    @Test
+    void loadFailsWithFileNotFoundExceptionWhenMissingOnClasspath() {
+        String originalOs = System.getProperty("os.name");
+        try {
+            String missingOs = originalOs.toLowerCase().contains("win") ? "macos" : "windows";
+            System.setProperty("os.name", missingOs);
+            FileNotFoundException ex =
+                    assertThrows(FileNotFoundException.class, NativeLibraryLoader::load);
+            assertTrue(ex.getMessage().contains("Bundled native library not found on classpath"));
+        } finally {
+            System.setProperty("os.name", originalOs);
+        }
+    }
+
+    @Test
+    void loadFailsWithUnsatisfiedLinkErrorOnCorruptLibrary() throws IOException {
+        Path tempFile = Files.createTempFile("corrupt-lib", ".so");
+        Files.writeString(tempFile, "not a valid shared library");
+        String originalProp = System.getProperty("parakeet.library.path");
+        try {
+            System.setProperty("parakeet.library.path", tempFile.toAbsolutePath().toString());
+            UnsatisfiedLinkError ex =
+                    assertThrows(UnsatisfiedLinkError.class, NativeLibraryLoader::load);
+            assertTrue(ex.getMessage().contains("Failed to load native parakeet library"));
+        } finally {
+            if (originalProp != null) {
+                System.setProperty("parakeet.library.path", originalProp);
+            } else {
+                System.clearProperty("parakeet.library.path");
+            }
+            Files.deleteIfExists(tempFile);
+        }
     }
 }
