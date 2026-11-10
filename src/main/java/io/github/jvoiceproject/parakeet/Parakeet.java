@@ -170,7 +170,8 @@ public final class Parakeet {
      * Sets or resets the {@link ParakeetBinding} instance.
      *
      * @param binding the binding instance to set, or {@code null} to reset
-     * @throws LinkageError if the native library cannot be dynamically linked or ABI version mismatch occurs
+     * @throws LinkageError if the native library cannot be dynamically linked or ABI version
+     *     mismatch occurs
      */
     static void setInstance(ParakeetBinding binding) {
         if (binding != null) {
