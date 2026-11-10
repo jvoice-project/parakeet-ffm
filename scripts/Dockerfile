@@ -19,7 +19,6 @@ WORKDIR /workspace
 
 COPY .git .git
 COPY .gitmodules .gitmodules
-COPY src/main/native/CMakeLists.txt .
 COPY pom.xml .
 COPY scripts/build_linux.sh .
 COPY src src

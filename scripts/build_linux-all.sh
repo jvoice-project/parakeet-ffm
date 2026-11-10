@@ -2,7 +2,7 @@
 set -e
 
 # Ensure we are in the project root
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 echo "Building native libraries for all supported platforms using Docker..."
 
@@ -18,19 +18,19 @@ fi
 docker buildx build \
     --platform linux/amd64,linux/arm64 \
     --target export \
-    --output "type=local,dest=../src/main/resources/tmp" \
-    --file Dockerfile \
-    ..
+    --output "type=local,dest=src/main/resources/tmp" \
+    --file scripts/Dockerfile \
+    .
 
 # Ensure resource directories exist
-mkdir -p ../src/main/resources/native/linux-x86-64 ../src/main/resources/native/linux-aarch64
+mkdir -p src/main/resources/native/linux-x86-64 src/main/resources/native/linux-aarch64
 
 # Binaries
-if [ -f "../src/main/resources/tmp/linux_amd64/libparakeet.so" ]; then
-    mv ../src/main/resources/tmp/linux_amd64/libparakeet.so ../src/main/resources/native/linux-x86-64/
+if [ -f "src/main/resources/tmp/linux_amd64/libparakeet.so" ]; then
+    mv src/main/resources/tmp/linux_amd64/libparakeet.so src/main/resources/native/linux-x86-64/
 fi
-if [ -f "../src/main/resources/tmp/linux_arm64/libparakeet.so" ]; then
-    mv ../src/main/resources/tmp/linux_arm64/libparakeet.so ../src/main/resources/native/linux-aarch64/
+if [ -f "src/main/resources/tmp/linux_arm64/libparakeet.so" ]; then
+    mv src/main/resources/tmp/linux_arm64/libparakeet.so src/main/resources/native/linux-aarch64/
 fi
 
 rm -rf src/main/resources/tmp
