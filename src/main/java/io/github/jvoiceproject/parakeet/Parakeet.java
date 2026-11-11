@@ -48,11 +48,11 @@ public final class Parakeet {
     /**
      * Loads the native parakeet library.
      *
-     * @throws IOException if the native library cannot be located or extracted.
+     * @throws IOException if the native library cannot be located or extracted
      * @throws UnsupportedOperationException if the operating system or architecture is not
-     *     supported.
+     *     supported
      * @throws LinkageError if the native library cannot be dynamically linked or ABI version
-     *     mismatch occurs.
+     *     mismatch occurs
      */
     public static void loadLibrary() throws IOException {
         if (!libraryLoaded) {
