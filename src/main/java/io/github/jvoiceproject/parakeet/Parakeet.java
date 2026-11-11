@@ -22,6 +22,8 @@ package io.github.jvoiceproject.parakeet;
 import io.github.jvoiceproject.parakeet.internal.Json;
 import io.github.jvoiceproject.parakeet.internal.NativeLibraryLoader;
 import io.github.jvoiceproject.parakeet.internal.ParakeetBinding;
+import io.github.jvoiceproject.parakeet.util.GgufMetadata;
+import io.github.jvoiceproject.parakeet.util.GgufMetadataReader;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -97,17 +99,26 @@ public final class Parakeet {
         return getBinding().parakeet_capi_abi_version();
     }
 
+    private static final GgufMetadataReader METADATA_READER = new GgufMetadataReader();
+
     /**
      * Loads a GGUF model file into a new {@link ParakeetModel} context.
      *
      * @param gguf Path to .gguf model file.
      * @return Loaded {@link ParakeetModel}.
-     * @throws ParakeetException if loading fails or file does not exist.
+     * @throws ParakeetException if loading fails, file does not exist, or GGUF metadata is invalid.
      * @throws IllegalStateException if the native library is not loaded.
      */
     public static ParakeetModel loadModel(Path gguf) {
         ParakeetBinding lib = getBinding();
-        validateModelPath(gguf);
+        GgufMetadata metadata = validateAndReadMetadata(gguf);
+        if (!metadata.isAsr() && !metadata.isVadOnly() && !metadata.isBundle()) {
+            throw new ParakeetException(
+                    "Unsupported GGUF model architecture '"
+                            + metadata.architecture()
+                            + "' in "
+                            + gguf);
+        }
         MemorySegment ctx = lib.parakeet_capi_load(gguf.toAbsolutePath().toString());
         if (ctx == null || ctx.equals(MemorySegment.NULL) || ctx.address() == 0) {
             throw new ParakeetException(
@@ -122,12 +133,22 @@ public final class Parakeet {
      * @param bundle Path to bundle .gguf file.
      * @param component Component name (e.g., <code>asr</code>, <code>vad</code>).
      * @return Loaded {@link ParakeetModel}.
-     * @throws ParakeetException if loading fails or file does not exist.
+     * @throws ParakeetException if loading fails, file does not exist, or file is not a GGUF
+     *     bundle.
      * @throws IllegalStateException if the native library is not loaded.
      */
     public static ParakeetModel loadModel(Path bundle, String component) {
         ParakeetBinding lib = getBinding();
-        validateModelPath(bundle);
+        Objects.requireNonNull(component, "component cannot be null");
+        GgufMetadata metadata = validateAndReadMetadata(bundle);
+        if (!metadata.isBundle()) {
+            throw new ParakeetException(
+                    "Model file is not a GGUF bundle: "
+                            + bundle
+                            + " (architecture: "
+                            + metadata.architecture()
+                            + ")");
+        }
         MemorySegment ctx =
                 lib.parakeet_capi_load_component(bundle.toAbsolutePath().toString(), component);
         if (ctx == null || ctx.equals(MemorySegment.NULL) || ctx.address() == 0) {
@@ -147,12 +168,20 @@ public final class Parakeet {
      *
      * @param bundle Path to bundle .gguf file.
      * @return List of {@link BundleComponent} metadata descriptors.
-     * @throws ParakeetException if inspection fails.
+     * @throws ParakeetException if inspection fails, file does not exist, or file is not a bundle.
      * @throws IllegalStateException if the native library is not loaded.
      */
     public static List<BundleComponent> bundleComponents(Path bundle) {
         ParakeetBinding lib = getBinding();
-        validateModelPath(bundle);
+        GgufMetadata metadata = validateAndReadMetadata(bundle);
+        if (!metadata.isBundle()) {
+            throw new ParakeetException(
+                    "Model file is not a GGUF bundle: "
+                            + bundle
+                            + " (architecture: "
+                            + metadata.architecture()
+                            + ")");
+        }
         String json = lib.parakeet_capi_bundle_components_json(bundle.toAbsolutePath().toString());
         if (json == null) {
             throw new ParakeetException(
@@ -206,6 +235,16 @@ public final class Parakeet {
             throw new ParakeetException(
                     "Model file does not exist: " + path,
                     new FileNotFoundException("Model file does not exist: " + path));
+        }
+    }
+
+    private static GgufMetadata validateAndReadMetadata(Path path) {
+        validateModelPath(path);
+        try {
+            return METADATA_READER.read(path);
+        } catch (IOException e) {
+            throw new ParakeetException(
+                    "Failed to read GGUF metadata from " + path + ": " + e.getMessage(), e);
         }
     }
 }

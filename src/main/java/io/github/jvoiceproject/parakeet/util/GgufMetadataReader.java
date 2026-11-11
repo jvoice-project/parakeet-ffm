@@ -93,7 +93,8 @@ public class GgufMetadataReader {
      *
      * @param path path to the GGUF file
      * @return extracted {@link GgufMetadata}
-     * @throws IOException if the file cannot be read
+     * @throws IOException if an I/O error occurs, the file doesn't exist, or the file is no valid
+     *     GGUF file
      */
     public GgufMetadata read(Path path) throws IOException {
         if (!Files.isRegularFile(path)) {

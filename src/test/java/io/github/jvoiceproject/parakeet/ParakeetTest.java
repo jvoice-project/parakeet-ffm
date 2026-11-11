@@ -20,7 +20,12 @@
 package io.github.jvoiceproject.parakeet;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -31,6 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Unit tests for {@link Parakeet} library loading, lifecycle management, and entry-point methods.
@@ -106,5 +112,104 @@ public class ParakeetTest {
         Parakeet.loadLibrary();
         assertTrue(Parakeet.isLibraryLoaded());
         assertNotNull(Parakeet.version());
+    }
+
+    @Test
+    void loadModelWithInvalidGgufFileThrows(@TempDir Path tempDir) throws IOException {
+        fake.abiVersion = 10;
+        Parakeet.setInstance(fake);
+
+        Path invalidFile = tempDir.resolve("invalid.gguf");
+        Files.write(invalidFile, new byte[] {1, 2, 3, 4, 5, 6, 7, 8});
+
+        ParakeetException ex =
+                assertThrows(ParakeetException.class, () -> Parakeet.loadModel(invalidFile));
+        assertTrue(ex.getMessage().contains("Failed to read GGUF metadata"));
+    }
+
+    @Test
+    void loadModelWithUnsupportedArchitectureThrows(@TempDir Path tempDir) throws IOException {
+        fake.abiVersion = 10;
+        Parakeet.setInstance(fake);
+
+        Path llamaFile = tempDir.resolve("llama.gguf");
+        Files.write(llamaFile, createSimpleGguf("llama"));
+
+        ParakeetException ex =
+                assertThrows(ParakeetException.class, () -> Parakeet.loadModel(llamaFile));
+        assertTrue(ex.getMessage().contains("Unsupported GGUF model architecture 'llama'"));
+    }
+
+    @Test
+    void loadModelBundleComponentRejectsNonBundleFile(@TempDir Path tempDir) throws IOException {
+        fake.abiVersion = 10;
+        Parakeet.setInstance(fake);
+
+        Path asrFile = tempDir.resolve("parakeet.gguf");
+        Files.write(asrFile, createSimpleGguf("parakeet"));
+
+        ParakeetException ex =
+                assertThrows(ParakeetException.class, () -> Parakeet.loadModel(asrFile, "asr"));
+        assertTrue(ex.getMessage().contains("Model file is not a GGUF bundle"));
+    }
+
+    @Test
+    void bundleComponentsRejectsNonBundleFile(@TempDir Path tempDir) throws IOException {
+        fake.abiVersion = 10;
+        Parakeet.setInstance(fake);
+
+        Path asrFile = tempDir.resolve("parakeet.gguf");
+        Files.write(asrFile, createSimpleGguf("parakeet"));
+
+        ParakeetException ex =
+                assertThrows(ParakeetException.class, () -> Parakeet.bundleComponents(asrFile));
+        assertTrue(ex.getMessage().contains("Model file is not a GGUF bundle"));
+    }
+
+    @Test
+    void loadModelWithValidBundleFile(@TempDir Path tempDir) throws IOException {
+        fake.abiVersion = 10;
+        fake.jsonToReturn =
+                """
+                [{"name": "asr", "kind": "asr"}]
+                """;
+        Parakeet.setInstance(fake);
+
+        Path bundleFile = tempDir.resolve("test-bundle.gguf");
+        Files.write(bundleFile, createSimpleGguf("parakeet-bundle"));
+
+        // loadModel(Path) accepts bundles (default component)
+        try (ParakeetModel model = Parakeet.loadModel(bundleFile)) {
+            assertNotNull(model);
+        }
+
+        // loadModel(Path, String) accepts bundles
+        try (ParakeetModel model = Parakeet.loadModel(bundleFile, "asr")) {
+            assertNotNull(model);
+        }
+
+        // bundleComponents(Path) accepts bundles
+        List<BundleComponent> components = Parakeet.bundleComponents(bundleFile);
+        assertEquals(1, components.size());
+        assertEquals("asr", components.getFirst().name());
+    }
+
+    private static byte[] createSimpleGguf(String architecture) {
+        ByteBuffer buf = ByteBuffer.allocate(512).order(ByteOrder.LITTLE_ENDIAN);
+        buf.putInt(0x46554747); // GGUF magic
+        buf.putInt(3); // version 3
+        buf.putLong(0L); // tensor count
+        buf.putLong(1L); // kv count = 1
+        byte[] keyBytes = "general.architecture".getBytes(StandardCharsets.UTF_8);
+        buf.putLong(keyBytes.length);
+        buf.put(keyBytes);
+        buf.putInt(8); // type STRING
+        byte[] valBytes = architecture.getBytes(StandardCharsets.UTF_8);
+        buf.putLong(valBytes.length);
+        buf.put(valBytes);
+        byte[] res = new byte[buf.position()];
+        buf.flip();
+        buf.get(res);
+        return res;
     }
 }
