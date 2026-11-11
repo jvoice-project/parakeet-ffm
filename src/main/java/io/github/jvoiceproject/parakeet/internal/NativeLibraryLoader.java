@@ -43,29 +43,28 @@ public final class NativeLibraryLoader {
      * Load the native library.
      *
      * @return the loaded native library binding
-     * @throws IOException if the library cannot be located/found
+     * @throws IOException if the library cannot be located or extracted
      * @throws UnsupportedOperationException if the operating system or architecture is not
      *     supported
-     * @throws LinkageError if the library cannot be loaded (linked)
+     * @throws LinkageError if the library cannot be loaded (linked) correctly
      */
-    public static ParakeetBinding load() throws IOException, UnsupportedOperationException {
+    public static ParakeetBinding load()
+            throws IOException, UnsupportedOperationException, LinkageError {
         Path libraryPath = locateLibrary();
         try {
             SymbolLookup lookup = SymbolLookup.libraryLookup(libraryPath, Arena.global());
             ParakeetBinding binding = new FfmParakeetBinding(lookup);
             validateAbiVersion(binding, libraryPath.toString());
             return binding;
-        } catch (LinkageError le) {
-            throw le;
-        } catch (Throwable t) {
-            UnsatisfiedLinkError error =
-                    new UnsatisfiedLinkError(
-                            "Failed to load native parakeet library from '"
-                                    + libraryPath
-                                    + "': "
-                                    + t.getMessage());
-            error.initCause(t);
-            throw error;
+        } catch (IllegalArgumentException iae) {
+            throw new LinkageError("Failed to link native parakeet library: " + libraryPath, iae);
+        } catch (RuntimeException e) {
+            throw new IOException(
+                    "Failed to load native parakeet library from '"
+                            + libraryPath
+                            + "': "
+                            + e.getMessage(),
+                    e);
         }
     }
 
@@ -76,7 +75,8 @@ public final class NativeLibraryLoader {
      * @param source the source of the native library (e.g., path, class name)
      * @throws LinkageError if the ABI version cannot be read or ABI version mismatch occurs
      */
-    public static void validateAbiVersion(ParakeetBinding binding, String source) {
+    public static void validateAbiVersion(ParakeetBinding binding, String source)
+            throws LinkageError {
         int actualAbi;
         try {
             actualAbi = binding.parakeet_capi_abi_version();

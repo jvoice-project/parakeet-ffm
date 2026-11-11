@@ -157,9 +157,8 @@ public class NativeLibraryLoaderTest {
         String originalProp = System.getProperty("parakeet.library.path");
         try {
             System.setProperty("parakeet.library.path", tempFile.toAbsolutePath().toString());
-            UnsatisfiedLinkError ex =
-                    assertThrows(UnsatisfiedLinkError.class, NativeLibraryLoader::load);
-            assertTrue(ex.getMessage().contains("Failed to load native parakeet library"));
+            LinkageError ex = assertThrows(LinkageError.class, NativeLibraryLoader::load);
+            assertTrue(ex.getMessage().contains("Failed to link native parakeet library"));
         } finally {
             if (originalProp != null) {
                 System.setProperty("parakeet.library.path", originalProp);
