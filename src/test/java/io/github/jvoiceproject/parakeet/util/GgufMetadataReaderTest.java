@@ -137,6 +137,7 @@ class GgufMetadataReaderTest {
         assertEquals("tdt", metadata.parakeetArch());
         assertTrue(metadata.isAsr());
         assertFalse(metadata.isVadOnly());
+        assertFalse(metadata.isBundle());
     }
 
     @Test
@@ -155,6 +156,7 @@ class GgufMetadataReaderTest {
         assertEquals("silero_vad", metadata.architecture());
         assertTrue(metadata.isVadOnly());
         assertFalse(metadata.isAsr());
+        assertFalse(metadata.isBundle());
     }
 
     @Test
@@ -175,6 +177,7 @@ class GgufMetadataReaderTest {
         assertEquals("vad", metadata.parakeetArch());
         assertTrue(metadata.isVadOnly());
         assertFalse(metadata.isAsr());
+        assertFalse(metadata.isBundle());
     }
 
     @Test

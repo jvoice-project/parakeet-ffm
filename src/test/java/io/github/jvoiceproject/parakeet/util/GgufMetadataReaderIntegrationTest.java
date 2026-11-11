@@ -85,6 +85,7 @@ class GgufMetadataReaderIntegrationTest {
         assertEquals("hybrid_tdt_ctc", metadata.parakeetArch());
         assertTrue(metadata.isAsr());
         assertFalse(metadata.isVadOnly());
+        assertFalse(metadata.isBundle());
         assertNotNull(metadata.languages());
         assertTrue(metadata.languages().isEmpty());
     }
@@ -99,6 +100,7 @@ class GgufMetadataReaderIntegrationTest {
         assertEquals("rnnt", metadata.parakeetArch());
         assertTrue(metadata.isAsr());
         assertFalse(metadata.isVadOnly());
+        assertFalse(metadata.isBundle());
         assertNotNull(metadata.languages());
         assertTrue(metadata.languages().isEmpty());
     }
@@ -113,6 +115,7 @@ class GgufMetadataReaderIntegrationTest {
         assertNull(metadata.parakeetArch());
         assertFalse(metadata.isAsr());
         assertTrue(metadata.isVadOnly());
+        assertFalse(metadata.isBundle());
         assertNotNull(metadata.languages());
         assertTrue(metadata.languages().isEmpty());
     }
@@ -136,6 +139,7 @@ class GgufMetadataReaderIntegrationTest {
             assertEquals("parakeet", metadata.architecture());
             assertEquals("hybrid_tdt_ctc", metadata.parakeetArch());
             assertTrue(metadata.isAsr());
+            assertFalse(metadata.isBundle());
         }
     }
 }

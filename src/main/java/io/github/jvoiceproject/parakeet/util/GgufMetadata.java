@@ -37,6 +37,15 @@ public record GgufMetadata(
     }
 
     /**
+     * Determines whether this model is a bundle GGUF, containing multiple components.
+     *
+     * @return true if the architecture indicates a bundle GGUF
+     */
+    public boolean isBundle() {
+        return "parakeet-bundle".equalsIgnoreCase(architecture);
+    }
+
+    /**
      * Determines whether this model is exclusively a Voice Activity Detection (VAD) model.
      *
      * @return true if the architecture indicates a standalone VAD model
