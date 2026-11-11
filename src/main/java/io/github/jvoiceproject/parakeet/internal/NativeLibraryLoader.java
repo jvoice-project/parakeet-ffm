@@ -129,8 +129,19 @@ public final class NativeLibraryLoader {
      * @throws UnsupportedOperationException if the operating system or architecture is not
      *     supported
      */
-    private static Path extractFromResources() throws IOException, UnsupportedOperationException {
-        String resourcePath = getPlatformResourcePath();
+    static Path extractFromResources() throws IOException, UnsupportedOperationException {
+        return extractFromResources(getPlatformResourcePath(), getLibraryExtension());
+    }
+
+    /**
+     * Extracts a resource from the classpath to a temporary file.
+     *
+     * @param resourcePath the path to the resource on the classpath
+     * @param extension the file extension for the temporary file
+     * @return the path to the extracted file
+     * @throws IOException if the resource cannot be located or extracted
+     */
+    static Path extractFromResources(String resourcePath, String extension) throws IOException {
         try (InputStream is = NativeLibraryLoader.class.getResourceAsStream(resourcePath)) {
             if (is == null) {
                 throw new FileNotFoundException(
@@ -141,7 +152,7 @@ public final class NativeLibraryLoader {
                                 + " -Dparakeet.library.path=...");
             }
 
-            Path target = Files.createTempFile("parakeet-", getLibraryExtension());
+            Path target = Files.createTempFile("parakeet-", extension);
             try (OutputStream os = Files.newOutputStream(target)) {
                 is.transferTo(os);
             }

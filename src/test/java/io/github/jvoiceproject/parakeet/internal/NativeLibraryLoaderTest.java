@@ -17,10 +17,9 @@
  * limitations under the License.
  * #L%
  */
-package io.github.jvoiceproject.parakeet;
+package io.github.jvoiceproject.parakeet.internal;
 
-import io.github.jvoiceproject.parakeet.internal.NativeLibraryLoader;
-import io.github.jvoiceproject.parakeet.internal.ParakeetBinding;
+import io.github.jvoiceproject.parakeet.FakeParakeetBinding;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -137,17 +136,15 @@ public class NativeLibraryLoaderTest {
     }
 
     @Test
-    void loadFailsWithFileNotFoundExceptionWhenMissingOnClasspath() {
-        String originalOs = System.getProperty("os.name");
-        try {
-            String missingOs = originalOs.toLowerCase().contains("win") ? "macos" : "windows";
-            System.setProperty("os.name", missingOs);
-            FileNotFoundException ex =
-                    assertThrows(FileNotFoundException.class, NativeLibraryLoader::load);
-            assertTrue(ex.getMessage().contains("Bundled native library not found on classpath"));
-        } finally {
-            System.setProperty("os.name", originalOs);
-        }
+    void extractFromResourcesFailsWithFileNotFoundExceptionWhenMissingOnClasspath() {
+        FileNotFoundException ex =
+                assertThrows(
+                        FileNotFoundException.class,
+                        () ->
+                                NativeLibraryLoader.extractFromResources(
+                                        "/native/missing/libparakeet.so", ".so"));
+        assertTrue(ex.getMessage().contains("Bundled native library not found on classpath"));
+        assertTrue(ex.getMessage().contains("/native/missing/libparakeet.so"));
     }
 
     @Test
