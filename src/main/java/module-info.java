@@ -22,6 +22,7 @@ module io.github.jvoiceproject.parakeet {
 
     exports io.github.jvoiceproject.parakeet;
     exports io.github.jvoiceproject.parakeet.transcribe;
+    exports io.github.jvoiceproject.parakeet.util;
     exports io.github.jvoiceproject.parakeet.vad;
 
     opens io.github.jvoiceproject.parakeet to
