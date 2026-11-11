@@ -24,6 +24,7 @@ import io.github.jvoiceproject.parakeet.internal.NativeLibraryLoader;
 import io.github.jvoiceproject.parakeet.internal.ParakeetBinding;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.lang.foreign.MemorySegment;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,21 +34,54 @@ import java.util.Objects;
 import com.google.gson.reflect.TypeToken;
 
 /**
- * Main entry point for the Parakeet Speech-to-Text and Voice Activity Detection library.
+ * Main entry point for the parakeet.cpp Speech-to-Text and Voice Activity Detection library.
  *
  * @author Florian Hotze - Initial contribution
  */
 public final class Parakeet {
 
+    private static volatile ParakeetBinding instance;
+    private static volatile boolean libraryLoaded;
+
     private Parakeet() {}
+
+    /**
+     * Loads the native parakeet library.
+     *
+     * @throws IOException if the native library cannot be located or extracted
+     * @throws UnsupportedOperationException if the operating system or architecture is not
+     *     supported
+     * @throws LinkageError if the native library cannot be dynamically linked or ABI version
+     *     mismatch occurs
+     */
+    public static void loadLibrary() throws IOException {
+        if (!libraryLoaded) {
+            synchronized (Parakeet.class) {
+                if (!libraryLoaded) {
+                    instance = NativeLibraryLoader.load();
+                    libraryLoaded = true;
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns whether the native library is currently loaded.
+     *
+     * @return {@code true} if the native library is loaded, {@code false} otherwise.
+     */
+    public static boolean isLibraryLoaded() {
+        return libraryLoaded;
+    }
 
     /**
      * Returns the native parakeet.cpp library version string.
      *
      * @return Version string (e.g. "0.6.1").
+     * @throws IllegalStateException if the native library is not loaded.
      */
     public static String version() {
-        return NativeLibraryLoader.getInstance().parakeet_version();
+        return getBinding().parakeet_version();
     }
 
     /** Expected C-API ABI version of the native parakeet library. */
@@ -57,9 +91,10 @@ public final class Parakeet {
      * Returns the C-API ABI version number.
      *
      * @return ABI version integer.
+     * @throws IllegalStateException if the native library is not loaded.
      */
     public static int abiVersion() {
-        return NativeLibraryLoader.getInstance().parakeet_capi_abi_version();
+        return getBinding().parakeet_capi_abi_version();
     }
 
     /**
@@ -68,10 +103,11 @@ public final class Parakeet {
      * @param gguf Path to .gguf model file.
      * @return Loaded {@link ParakeetModel}.
      * @throws ParakeetException if loading fails or file does not exist.
+     * @throws IllegalStateException if the native library is not loaded.
      */
     public static ParakeetModel loadModel(Path gguf) {
+        ParakeetBinding lib = getBinding();
         validateModelPath(gguf);
-        ParakeetBinding lib = NativeLibraryLoader.getInstance();
         MemorySegment ctx = lib.parakeet_capi_load(gguf.toAbsolutePath().toString());
         if (ctx == null || ctx.equals(MemorySegment.NULL) || ctx.address() == 0) {
             throw new ParakeetException(
@@ -87,10 +123,11 @@ public final class Parakeet {
      * @param component Component name (e.g., <code>asr</code>, <code>vad</code>).
      * @return Loaded {@link ParakeetModel}.
      * @throws ParakeetException if loading fails or file does not exist.
+     * @throws IllegalStateException if the native library is not loaded.
      */
     public static ParakeetModel loadModel(Path bundle, String component) {
+        ParakeetBinding lib = getBinding();
         validateModelPath(bundle);
-        ParakeetBinding lib = NativeLibraryLoader.getInstance();
         MemorySegment ctx =
                 lib.parakeet_capi_load_component(bundle.toAbsolutePath().toString(), component);
         if (ctx == null || ctx.equals(MemorySegment.NULL) || ctx.address() == 0) {
@@ -111,10 +148,11 @@ public final class Parakeet {
      * @param bundle Path to bundle .gguf file.
      * @return List of {@link BundleComponent} metadata descriptors.
      * @throws ParakeetException if inspection fails.
+     * @throws IllegalStateException if the native library is not loaded.
      */
     public static List<BundleComponent> bundleComponents(Path bundle) {
+        ParakeetBinding lib = getBinding();
         validateModelPath(bundle);
-        ParakeetBinding lib = NativeLibraryLoader.getInstance();
         String json = lib.parakeet_capi_bundle_components_json(bundle.toAbsolutePath().toString());
         if (json == null) {
             throw new ParakeetException(
@@ -126,6 +164,40 @@ public final class Parakeet {
         List<BundleComponent> list =
                 Json.GSON.fromJson(json, new TypeToken<List<BundleComponent>>() {}.getType());
         return list != null ? list : List.of();
+    }
+
+    /**
+     * Sets or resets the {@link ParakeetBinding} instance.
+     *
+     * @param binding the binding instance to set, or {@code null} to reset
+     * @throws LinkageError if the native library cannot be dynamically linked or ABI version
+     *     mismatch occurs
+     */
+    static void setInstance(ParakeetBinding binding) {
+        if (binding != null) {
+            NativeLibraryLoader.validateAbiVersion(binding, "custom binding");
+            synchronized (Parakeet.class) {
+                instance = binding;
+                libraryLoaded = true;
+            }
+        } else {
+            synchronized (Parakeet.class) {
+                instance = null;
+                libraryLoaded = false;
+            }
+        }
+    }
+
+    private static void assertLibraryLoaded() throws IllegalStateException {
+        if (!libraryLoaded) {
+            throw new IllegalStateException(
+                    "Native library is not loaded. Call Parakeet.loadLibrary() first.");
+        }
+    }
+
+    private static ParakeetBinding getBinding() {
+        assertLibraryLoaded();
+        return instance;
     }
 
     private static void validateModelPath(Path path) {

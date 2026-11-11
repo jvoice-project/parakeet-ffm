@@ -290,18 +290,25 @@ public final class FfmParakeetBinding implements ParakeetBinding {
      * @param name The exact C function name as-exported in the header.
      * @param descriptor The FFM function descriptor matching the C signature.
      * @return A {@link MethodHandle} configured to invoke the native function.
+     * @throws LinkageError If the native symbol is not found in the library or cannot be linked
      */
     private static MethodHandle find(
-            SymbolLookup lookup, Linker linker, String name, FunctionDescriptor descriptor) {
+            SymbolLookup lookup, Linker linker, String name, FunctionDescriptor descriptor)
+            throws LinkageError {
         MemorySegment symbol =
                 lookup.find(name)
                         .orElseThrow(
                                 () ->
-                                        new ParakeetException(
+                                        new UnsatisfiedLinkError(
                                                 "Required native symbol '"
                                                         + name
                                                         + "' not found in library"));
-        return linker.downcallHandle(symbol, descriptor);
+        try {
+            return linker.downcallHandle(symbol, descriptor);
+        } catch (RuntimeException e) {
+            throw new LinkageError(
+                    "Failed to link native symbol '" + name + "': " + e.getMessage(), e);
+        }
     }
 
     /**

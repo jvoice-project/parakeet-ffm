@@ -19,8 +19,7 @@
  */
 package io.github.jvoiceproject.parakeet.internal;
 
-import io.github.jvoiceproject.parakeet.ParakeetException;
-
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -38,63 +37,56 @@ import java.util.Locale;
 public final class NativeLibraryLoader {
     private static final String PLATFORM_RESOURCE_PATH_PATTERN = "/native/%s-%s/%sparakeet%s";
 
-    private static volatile ParakeetBinding instance;
-
     private NativeLibraryLoader() {}
 
-    public static ParakeetBinding getInstance() {
-        ParakeetBinding binding = instance;
-        if (binding == null) {
-            synchronized (NativeLibraryLoader.class) {
-                binding = instance;
-                if (binding == null) {
-                    binding = load();
-                    instance = binding;
-                }
-            }
-        }
-        return binding;
-    }
-
-    public static void setInstance(ParakeetBinding binding) {
-        if (binding != null) {
-            validateAbiVersion(binding, "custom binding");
-        }
-        synchronized (NativeLibraryLoader.class) {
-            instance = binding;
-        }
-    }
-
-    private static ParakeetBinding load() {
+    /**
+     * Load the native library.
+     *
+     * @return the loaded native library binding
+     * @throws IOException if the library cannot be located or extracted
+     * @throws UnsupportedOperationException if the operating system or architecture is not
+     *     supported
+     * @throws LinkageError if the library cannot be loaded (linked) correctly
+     */
+    public static ParakeetBinding load()
+            throws IOException, UnsupportedOperationException, LinkageError {
         Path libraryPath = locateLibrary();
         try {
             SymbolLookup lookup = SymbolLookup.libraryLookup(libraryPath, Arena.global());
             ParakeetBinding binding = new FfmParakeetBinding(lookup);
-            validateAbiVersion(binding, libraryPath);
+            validateAbiVersion(binding, libraryPath.toString());
             return binding;
-        } catch (ParakeetException pe) {
-            throw pe;
-        } catch (Throwable t) {
-            throw new ParakeetException(
+        } catch (IllegalArgumentException iae) {
+            throw new LinkageError("Failed to link native parakeet library: " + libraryPath, iae);
+        } catch (RuntimeException e) {
+            throw new IOException(
                     "Failed to load native parakeet library from '"
                             + libraryPath
                             + "': "
-                            + t.getMessage(),
-                    t);
+                            + e.getMessage(),
+                    e);
         }
     }
 
-    public static void validateAbiVersion(ParakeetBinding binding, Object source) {
+    /**
+     * Validates the ABI version of the loaded native library against the expected ABI version.
+     *
+     * @param binding the native library binding
+     * @param source the source of the native library (e.g., path, class name)
+     * @throws LinkageError if the ABI version cannot be read or ABI version mismatch occurs
+     */
+    public static void validateAbiVersion(ParakeetBinding binding, String source)
+            throws LinkageError {
         int actualAbi;
         try {
             actualAbi = binding.parakeet_capi_abi_version();
         } catch (Throwable t) {
-            throw new ParakeetException(
+            throw new LinkageError(
                     "Failed to query parakeet ABI version from '" + source + "': " + t.getMessage(),
                     t);
         }
         if (actualAbi != ParakeetBinding.EXPECTED_ABI_VERSION) {
-            throw new ParakeetException(
+            throw new LinkageError(
                     String.format(
                             "Incompatible parakeet native library ABI version from '%s': expected"
                                     + " %d, got %d",
@@ -102,7 +94,15 @@ public final class NativeLibraryLoader {
         }
     }
 
-    private static Path locateLibrary() {
+    /**
+     * Locates the native library.
+     *
+     * @return the path to the native library
+     * @throws IOException if the library cannot be located/found
+     * @throws UnsupportedOperationException if the operating system or architecture is not
+     *     supported
+     */
+    private static Path locateLibrary() throws IOException, UnsupportedOperationException {
         String customPath = System.getProperty("parakeet.library.path");
         if (customPath != null) {
             Path p = Path.of(customPath);
@@ -121,11 +121,30 @@ public final class NativeLibraryLoader {
         return extractFromResources();
     }
 
-    private static Path extractFromResources() {
-        String resourcePath = getPlatformResourcePath();
+    /**
+     * Extracts the native library from the resources.
+     *
+     * @return the path to the extracted native library
+     * @throws IOException if the library cannot be extracted
+     * @throws UnsupportedOperationException if the operating system or architecture is not
+     *     supported
+     */
+    static Path extractFromResources() throws IOException, UnsupportedOperationException {
+        return extractFromResources(getPlatformResourcePath(), getLibraryExtension());
+    }
+
+    /**
+     * Extracts a resource from the classpath to a temporary file.
+     *
+     * @param resourcePath the path to the resource on the classpath
+     * @param extension the file extension for the temporary file
+     * @return the path to the extracted file
+     * @throws IOException if the resource cannot be located or extracted
+     */
+    static Path extractFromResources(String resourcePath, String extension) throws IOException {
         try (InputStream is = NativeLibraryLoader.class.getResourceAsStream(resourcePath)) {
             if (is == null) {
-                throw new ParakeetException(
+                throw new FileNotFoundException(
                         "Bundled native library not found on classpath: "
                                 + resourcePath
                                 + "\n"
@@ -133,26 +152,31 @@ public final class NativeLibraryLoader {
                                 + " -Dparakeet.library.path=...");
             }
 
-            Path target = Files.createTempFile("parakeet-", getLibraryExtension());
+            Path target = Files.createTempFile("parakeet-", extension);
             try (OutputStream os = Files.newOutputStream(target)) {
                 is.transferTo(os);
             }
 
             target.toFile().deleteOnExit();
             return target.toAbsolutePath();
-        } catch (IOException e) {
-            throw new ParakeetException("Failed to extract native library from " + resourcePath, e);
         }
     }
 
-    private static String getPlatformResourcePath() {
+    /**
+     * Gets the platform-specific resource path for the native library.
+     *
+     * @return the platform-specific resource path
+     * @throws UnsupportedOperationException if the operating system or architecture is not
+     *     supported
+     */
+    private static String getPlatformResourcePath() throws UnsupportedOperationException {
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
 
         String osPrefix;
         String libPrefix;
 
-        if (os.contains("linux")) {
+        if (os.contains("nux") || os.contains("nix") || os.contains("aix")) {
             osPrefix = "linux";
             libPrefix = "lib";
         } else if (os.contains("mac") || os.contains("darwin")) {
@@ -162,7 +186,7 @@ public final class NativeLibraryLoader {
             osPrefix = "windows";
             libPrefix = "";
         } else {
-            throw new ParakeetException("Unsupported operating system: " + os);
+            throw new UnsupportedOperationException("Unsupported operating system: " + os);
         }
 
         String archSuffix;
@@ -171,7 +195,7 @@ public final class NativeLibraryLoader {
         } else if (arch.equals("aarch64") || arch.equals("arm64")) {
             archSuffix = "aarch64";
         } else {
-            throw new ParakeetException("Unsupported architecture: " + arch);
+            throw new UnsupportedOperationException("Unsupported architecture: " + arch);
         }
 
         return PLATFORM_RESOURCE_PATH_PATTERN.formatted(
