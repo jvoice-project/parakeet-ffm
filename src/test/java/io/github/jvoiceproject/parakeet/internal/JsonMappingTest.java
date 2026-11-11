@@ -17,9 +17,9 @@
  * limitations under the License.
  * #L%
  */
-package io.github.jvoiceproject.parakeet;
+package io.github.jvoiceproject.parakeet.internal;
 
-import io.github.jvoiceproject.parakeet.internal.Json;
+import io.github.jvoiceproject.parakeet.BundleComponent;
 import io.github.jvoiceproject.parakeet.transcribe.TranscribeStreamResult;
 import io.github.jvoiceproject.parakeet.transcribe.Transcription;
 import io.github.jvoiceproject.parakeet.vad.VadResult;
