@@ -13,9 +13,8 @@ parakeet.cpp is a fast, portable C++ implementation of NVIDIA Parakeet and Nemot
 
 ## Platform Support
 
-Java == 21 is required.
-Because FFM in Java 21 is a preview feature, `--enable-preview` and native access flag `--enable-native-access=ALL-UNNAMED` (or your module name) are required at compile and run time on Java 21,
-and only Java 21 is supported!
+Java >= 25 is required.
+Make sure to add the native access flag `--enable-native-access=ALL-UNNAMED` (or your module name) at run time.
 
 The library aims to support the following platforms:
 
@@ -186,7 +185,7 @@ try (ParakeetModel vad = Parakeet.loadModel(Path.of("silero-vad-f16.gguf"))) {
 
 ## Development
 
-You need Java >= 21, CMake >= 3.18, and a C++17 compiler.
+You need Java >= 25, CMake >= 3.18, and a C++17 compiler.
 
 ### Initializing Submodules
 

@@ -30,7 +30,7 @@ This guide explains:
 * **Git** (with submodules checked out)
 * **CMake >= 3.18**
 * **C++17 Compiler**: GCC 10+, Clang 12+, or MSVC 2019+
-* **Java >= 21** (JDK 21 or newer with `--enable-preview`)
+* **Java >= 25**
 
 Make sure git submodules are initialized before building:
 
