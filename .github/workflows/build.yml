@@ -142,8 +142,6 @@ jobs:
         with:
           name: parakeet-ffm
           path: dist/jar.tar
-      - name: Run tests
-        run: ./mvnw -B test -DexcludedGroups=integration -DskipDownloadTestData=true
 
   test-maven:
     name: Maven Test (${{ matrix.target }})
