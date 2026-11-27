@@ -142,9 +142,13 @@ public class NativeLibraryLoaderTest {
                         FileNotFoundException.class,
                         () ->
                                 NativeLibraryLoader.extractFromResources(
-                                        "/native/missing/libparakeet.so", ".so"));
+                                        "/io/github/jvoiceproject/parakeet/native/missing/libparakeet.so",
+                                        ".so"));
         assertTrue(ex.getMessage().contains("Bundled native library not found on classpath"));
-        assertTrue(ex.getMessage().contains("/native/missing/libparakeet.so"));
+        assertTrue(
+                ex.getMessage()
+                        .contains(
+                                "/io/github/jvoiceproject/parakeet/native/missing/libparakeet.so"));
     }
 
     @Test

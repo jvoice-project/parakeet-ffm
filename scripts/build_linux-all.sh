@@ -23,17 +23,17 @@ docker buildx build \
     .
 
 # Ensure resource directories exist
-mkdir -p src/main/resources/native/linux-x86-64 src/main/resources/native/linux-aarch64
+mkdir -p src/main/resources/io/github/jvoiceproject/parakeet/native/linux-x86-64 src/main/resources/io/github/jvoiceproject/parakeet/native/linux-aarch64
 
 # Binaries
 if [ -f "src/main/resources/tmp/linux_amd64/libparakeet.so" ]; then
-    mv src/main/resources/tmp/linux_amd64/libparakeet.so src/main/resources/native/linux-x86-64/
+    mv src/main/resources/tmp/linux_amd64/libparakeet.so src/main/resources/io/github/jvoiceproject/parakeet/native/linux-x86-64/
 fi
 if [ -f "src/main/resources/tmp/linux_arm64/libparakeet.so" ]; then
-    mv src/main/resources/tmp/linux_arm64/libparakeet.so src/main/resources/native/linux-aarch64/
+    mv src/main/resources/tmp/linux_arm64/libparakeet.so src/main/resources/io/github/jvoiceproject/parakeet/native/linux-aarch64/
 fi
 
 rm -rf src/main/resources/tmp
 
-echo "Build complete. Binaries are located in src/main/resources/native/"
-ls -R src/main/resources/native/linux-*
+echo "Build complete. Binaries are located in src/main/resources/io/github/jvoiceproject/parakeet/native/"
+ls -R src/main/resources/io/github/jvoiceproject/parakeet/native/linux-*
