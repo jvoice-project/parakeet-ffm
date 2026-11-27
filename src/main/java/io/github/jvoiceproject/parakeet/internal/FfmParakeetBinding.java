@@ -28,6 +28,7 @@ import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Java Foreign Function &amp; Memory (FFM) implementation of {@link ParakeetBinding}.
@@ -330,7 +331,7 @@ public final class FfmParakeetBinding implements ParakeetBinding {
             return null;
         }
         try {
-            return ptr.reinterpret(Long.MAX_VALUE).getUtf8String(0);
+            return ptr.reinterpret(Long.MAX_VALUE).getString(0, StandardCharsets.UTF_8);
         } finally {
             try {
                 mh_free_string.invokeExact(ptr);
@@ -356,7 +357,7 @@ public final class FfmParakeetBinding implements ParakeetBinding {
         if (ptr == null || ptr.equals(MemorySegment.NULL) || ptr.address() == 0) {
             return null;
         }
-        return ptr.reinterpret(Long.MAX_VALUE).getUtf8String(0);
+        return ptr.reinterpret(Long.MAX_VALUE).getString(0, StandardCharsets.UTF_8);
     }
 
     @Override
@@ -382,7 +383,9 @@ public final class FfmParakeetBinding implements ParakeetBinding {
     public MemorySegment parakeet_capi_load(String ggufPath) {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment pathSeg =
-                    ggufPath != null ? arena.allocateUtf8String(ggufPath) : MemorySegment.NULL;
+                    ggufPath != null
+                            ? arena.allocateFrom(ggufPath, StandardCharsets.UTF_8)
+                            : MemorySegment.NULL;
             return (MemorySegment) mh_load.invokeExact(pathSeg);
         } catch (Throwable t) {
             throw new ParakeetException("Failed to load model from " + ggufPath, t);
@@ -393,9 +396,13 @@ public final class FfmParakeetBinding implements ParakeetBinding {
     public MemorySegment parakeet_capi_load_component(String ggufPath, String component) {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment pathSeg =
-                    ggufPath != null ? arena.allocateUtf8String(ggufPath) : MemorySegment.NULL;
+                    ggufPath != null
+                            ? arena.allocateFrom(ggufPath, StandardCharsets.UTF_8)
+                            : MemorySegment.NULL;
             MemorySegment compSeg =
-                    component != null ? arena.allocateUtf8String(component) : MemorySegment.NULL;
+                    component != null
+                            ? arena.allocateFrom(component, StandardCharsets.UTF_8)
+                            : MemorySegment.NULL;
             return (MemorySegment) mh_load_component.invokeExact(pathSeg, compSeg);
         } catch (Throwable t) {
             throw new ParakeetException(
@@ -407,7 +414,9 @@ public final class FfmParakeetBinding implements ParakeetBinding {
     public String parakeet_capi_bundle_components_json(String ggufPath) {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment pathSeg =
-                    ggufPath != null ? arena.allocateUtf8String(ggufPath) : MemorySegment.NULL;
+                    ggufPath != null
+                            ? arena.allocateFrom(ggufPath, StandardCharsets.UTF_8)
+                            : MemorySegment.NULL;
             MemorySegment ptr = (MemorySegment) mh_bundle_components_json.invokeExact(pathSeg);
             return readAndFreeString(ptr);
         } catch (Throwable t) {
@@ -470,9 +479,13 @@ public final class FfmParakeetBinding implements ParakeetBinding {
             MemorySegment ctx, String wavPath, int decoder, String targetLang) {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment pathSeg =
-                    wavPath != null ? arena.allocateUtf8String(wavPath) : MemorySegment.NULL;
+                    wavPath != null
+                            ? arena.allocateFrom(wavPath, StandardCharsets.UTF_8)
+                            : MemorySegment.NULL;
             MemorySegment langSeg =
-                    targetLang != null ? arena.allocateUtf8String(targetLang) : MemorySegment.NULL;
+                    targetLang != null
+                            ? arena.allocateFrom(targetLang, StandardCharsets.UTF_8)
+                            : MemorySegment.NULL;
             MemorySegment ptr =
                     (MemorySegment)
                             mh_transcribe_path_lang.invokeExact(ctx, pathSeg, decoder, langSeg);
@@ -493,10 +506,12 @@ public final class FfmParakeetBinding implements ParakeetBinding {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment pcmSeg =
                     pcm != null
-                            ? arena.allocateArray(ValueLayout.JAVA_FLOAT, pcm)
+                            ? arena.allocateFrom(ValueLayout.JAVA_FLOAT, pcm)
                             : MemorySegment.NULL;
             MemorySegment langSeg =
-                    targetLang != null ? arena.allocateUtf8String(targetLang) : MemorySegment.NULL;
+                    targetLang != null
+                            ? arena.allocateFrom(targetLang, StandardCharsets.UTF_8)
+                            : MemorySegment.NULL;
             MemorySegment ptr =
                     (MemorySegment)
                             mh_transcribe_pcm_lang.invokeExact(
@@ -512,7 +527,9 @@ public final class FfmParakeetBinding implements ParakeetBinding {
             MemorySegment ctx, String wavPath, int decoder) {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment pathSeg =
-                    wavPath != null ? arena.allocateUtf8String(wavPath) : MemorySegment.NULL;
+                    wavPath != null
+                            ? arena.allocateFrom(wavPath, StandardCharsets.UTF_8)
+                            : MemorySegment.NULL;
             MemorySegment ptr =
                     (MemorySegment) mh_transcribe_path_json.invokeExact(ctx, pathSeg, decoder);
             return readAndFreeString(ptr);
@@ -526,7 +543,9 @@ public final class FfmParakeetBinding implements ParakeetBinding {
     public MemorySegment parakeet_capi_stream_begin_lang(MemorySegment ctx, String targetLang) {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment langSeg =
-                    targetLang != null ? arena.allocateUtf8String(targetLang) : MemorySegment.NULL;
+                    targetLang != null
+                            ? arena.allocateFrom(targetLang, StandardCharsets.UTF_8)
+                            : MemorySegment.NULL;
             return (MemorySegment) mh_stream_begin_lang.invokeExact(ctx, langSeg);
         } catch (Throwable t) {
             throw new ParakeetException("Failed to begin streaming session", t);
@@ -538,7 +557,7 @@ public final class FfmParakeetBinding implements ParakeetBinding {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment pcmSeg =
                     pcm != null
-                            ? arena.allocateArray(ValueLayout.JAVA_FLOAT, pcm)
+                            ? arena.allocateFrom(ValueLayout.JAVA_FLOAT, pcm)
                             : MemorySegment.NULL;
             MemorySegment ptr =
                     (MemorySegment) mh_stream_feed_json.invokeExact(stream, pcmSeg, nSamples);
@@ -576,11 +595,11 @@ public final class FfmParakeetBinding implements ParakeetBinding {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment pcmSeg =
                     pcm != null
-                            ? arena.allocateArray(ValueLayout.JAVA_FLOAT, pcm)
+                            ? arena.allocateFrom(ValueLayout.JAVA_FLOAT, pcm)
                             : MemorySegment.NULL;
             MemorySegment optsSeg =
                     optionsJson != null
-                            ? arena.allocateUtf8String(optionsJson)
+                            ? arena.allocateFrom(optionsJson, StandardCharsets.UTF_8)
                             : MemorySegment.NULL;
             MemorySegment ptr =
                     (MemorySegment)
@@ -596,10 +615,12 @@ public final class FfmParakeetBinding implements ParakeetBinding {
             MemorySegment ctx, String wavPath, String optionsJson) {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment pathSeg =
-                    wavPath != null ? arena.allocateUtf8String(wavPath) : MemorySegment.NULL;
+                    wavPath != null
+                            ? arena.allocateFrom(wavPath, StandardCharsets.UTF_8)
+                            : MemorySegment.NULL;
             MemorySegment optsSeg =
                     optionsJson != null
-                            ? arena.allocateUtf8String(optionsJson)
+                            ? arena.allocateFrom(optionsJson, StandardCharsets.UTF_8)
                             : MemorySegment.NULL;
             MemorySegment ptr = (MemorySegment) mh_vad_path_json.invokeExact(ctx, pathSeg, optsSeg);
             return readAndFreeString(ptr);
@@ -617,10 +638,12 @@ public final class FfmParakeetBinding implements ParakeetBinding {
             String vadOptsJson) {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment pathSeg =
-                    wavPath != null ? arena.allocateUtf8String(wavPath) : MemorySegment.NULL;
+                    wavPath != null
+                            ? arena.allocateFrom(wavPath, StandardCharsets.UTF_8)
+                            : MemorySegment.NULL;
             MemorySegment optsSeg =
                     vadOptsJson != null
-                            ? arena.allocateUtf8String(vadOptsJson)
+                            ? arena.allocateFrom(vadOptsJson, StandardCharsets.UTF_8)
                             : MemorySegment.NULL;
             MemorySegment ptr =
                     (MemorySegment)
@@ -638,7 +661,7 @@ public final class FfmParakeetBinding implements ParakeetBinding {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment optsSeg =
                     optionsJson != null
-                            ? arena.allocateUtf8String(optionsJson)
+                            ? arena.allocateFrom(optionsJson, StandardCharsets.UTF_8)
                             : MemorySegment.NULL;
             return (MemorySegment) mh_vad_stream_begin.invokeExact(vadCtx, sampleRate, optsSeg);
         } catch (Throwable t) {
@@ -652,7 +675,7 @@ public final class FfmParakeetBinding implements ParakeetBinding {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment pcmSeg =
                     pcm != null
-                            ? arena.allocateArray(ValueLayout.JAVA_FLOAT, pcm)
+                            ? arena.allocateFrom(ValueLayout.JAVA_FLOAT, pcm)
                             : MemorySegment.NULL;
             MemorySegment ptr =
                     (MemorySegment)

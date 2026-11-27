@@ -196,7 +196,7 @@ public class ParakeetModelTest {
         assertTrue(feedRes.eou());
         assertFalse(feedRes.eob());
         assertEquals(1, feedRes.events().size());
-        assertEquals("eou", feedRes.events().get(0).type());
+        assertEquals("eou", feedRes.events().getFirst().type());
         assertEquals(1, feedRes.words().size());
 
         TranscribeStreamResult finRes = stream.finish();

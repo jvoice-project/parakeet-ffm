@@ -34,6 +34,7 @@ import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandleProxies;
 import java.lang.invoke.MethodType;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -128,7 +129,9 @@ public class ParakeetVadIntegrationTest extends ParakeetIntegrationTest {
                 (origLcNumeric != null
                                 && !origLcNumeric.equals(MemorySegment.NULL)
                                 && origLcNumeric.address() != 0)
-                        ? origLcNumeric.reinterpret(Long.MAX_VALUE).getUtf8String(0)
+                        ? origLcNumeric
+                                .reinterpret(Long.MAX_VALUE)
+                                .getString(0, StandardCharsets.UTF_8)
                         : null;
 
         MemorySegment origLcAll = setLocaleFn.apply(lcAll, MemorySegment.NULL);
@@ -136,12 +139,12 @@ public class ParakeetVadIntegrationTest extends ParakeetIntegrationTest {
                 (origLcAll != null
                                 && !origLcAll.equals(MemorySegment.NULL)
                                 && origLcAll.address() != 0)
-                        ? origLcAll.reinterpret(Long.MAX_VALUE).getUtf8String(0)
+                        ? origLcAll.reinterpret(Long.MAX_VALUE).getString(0, StandardCharsets.UTF_8)
                         : null;
 
         try (Arena arena = Arena.ofConfined()) {
             try {
-                MemorySegment deLocale = arena.allocateUtf8String("de_DE.UTF-8");
+                MemorySegment deLocale = arena.allocateFrom("de_DE.UTF-8", StandardCharsets.UTF_8);
                 MemorySegment resNumeric = setLocaleFn.apply(lcNumeric, deLocale);
                 MemorySegment resAll = setLocaleFn.apply(lcAll, deLocale);
 
@@ -200,10 +203,11 @@ public class ParakeetVadIntegrationTest extends ParakeetIntegrationTest {
                 }
             } finally {
                 if (origAll != null) {
-                    setLocaleFn.apply(lcAll, arena.allocateUtf8String(origAll));
+                    setLocaleFn.apply(lcAll, arena.allocateFrom(origAll, StandardCharsets.UTF_8));
                 }
                 if (origNumeric != null) {
-                    setLocaleFn.apply(lcNumeric, arena.allocateUtf8String(origNumeric));
+                    setLocaleFn.apply(
+                            lcNumeric, arena.allocateFrom(origNumeric, StandardCharsets.UTF_8));
                 }
             }
         }
