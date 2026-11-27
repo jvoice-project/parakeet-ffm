@@ -96,19 +96,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Set up Cache
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
       - name: Setup Java
         uses: actions/setup-java@v6.3.0
         with:
           distribution: ${{ env.JAVA_DISTRO }}
           java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
           problem-matcher: true
       - uses: actions/download-artifact@v8
         with:
@@ -161,14 +154,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - name: Set up Cache
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
       - name: Cache test models
         uses: actions/cache@v6
         with:
@@ -182,6 +167,7 @@ jobs:
         with:
           distribution: ${{ env.JAVA_DISTRO }}
           java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
           problem-matcher: true
       - uses: actions/download-artifact@v8
         with:
@@ -217,14 +203,6 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
-      - name: Set up Cache
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
       # Download & Extract resources artifact
       - uses: actions/download-artifact@v8
         with:
@@ -241,6 +219,7 @@ jobs:
         with:
           distribution: ${{ env.JAVA_DISTRO }}
           java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
           server-id: sonatype-central
           server-username-env-var: MAVEN_CENTRAL_USERNAME
           server-password-env-var: MAVEN_CENTRAL_TOKEN
