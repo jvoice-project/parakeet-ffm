@@ -82,7 +82,7 @@ You can build the native library using the provided build scripts or directly vi
 
 ### Linux
 
-The helper script `./scripts/build_linux.sh` automatically detects the architecture, initializes submodules, and installs the output into `src/main/resources/native/linux-<arch>/`:
+The helper script `./scripts/build_linux.sh` automatically detects the architecture, initializes submodules, and installs the output into `src/main/resources/io/github/jvoiceproject/parakeet/native/linux-<arch>/`:
 
 ```bash
 # CPU build (portable):
@@ -102,7 +102,7 @@ The helper script `./scripts/build_linux.sh` automatically detects the architect
 
 ### Windows
 
-The helper script `scripts\build_win.cmd` automatically detects initializes submodules and installs the output into `src/main/resources/native/windows-<arch>/`.
+The helper script `scripts\build_win.cmd` automatically detects initializes submodules and installs the output into `src/main/resources/io/github/jvoiceproject/parakeet/native/windows-<arch>/`.
 Open a **Developer Command Prompt for Visual Studio** (or Developer PowerShell):
 
 ```cmd
@@ -136,8 +136,8 @@ The build system automatically enables Metal acceleration when building for Appl
 
 The resulting library is installed into:
 
-* Apple Silicon: `src/main/resources/native/macos-aarch64/libparakeet.dylib`
-* Intel: `src/main/resources/native/macos-x86-64/libparakeet.dylib`
+* Apple Silicon: `src/main/resources/io/github/jvoiceproject/parakeet/native/macos-aarch64/libparakeet.dylib`
+* Intel: `src/main/resources/io/github/jvoiceproject/parakeet/native/macos-x86-64/libparakeet.dylib`
 
 ---
 

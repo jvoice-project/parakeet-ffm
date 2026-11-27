@@ -21,7 +21,7 @@ esac
 
 SOURCE_DIR="src/main/native"
 BUILD_DIR="target/native-build"
-TARGET_DIR="src/main/resources/native/macos-$FFM_ARCH"
+TARGET_DIR="src/main/resources/io/github/jvoiceproject/parakeet/native/macos-$FFM_ARCH"
 
 if [ ! -f "src/main/native/parakeet/CMakeLists.txt" ]; then
     echo "Initializing submodules..."

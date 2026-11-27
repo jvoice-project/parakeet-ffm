@@ -29,4 +29,4 @@ RUN TARGETARCH=${TARGETARCH} ./build_linux.sh
 
 # Stage 2: Export binaries
 FROM scratch AS export
-COPY --from=native-builder /workspace/src/main/resources/native/linux-*/libparakeet.so /
+COPY --from=native-builder /workspace/src/main/resources/io/github/jvoiceproject/parakeet/native/linux-*/libparakeet.so /

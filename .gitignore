@@ -6,8 +6,8 @@
 # CMake & Java build artefacts
 target/
 # Native build artefacts
-src/main/resources/native/linux-*
-src/main/resources/native/macos-*
-src/main/resources/native/windows-*
+src/main/resources/io/github/jvoiceproject/parakeet/native/linux-*
+src/main/resources/io/github/jvoiceproject/parakeet/native/macos-*
+src/main/resources/io/github/jvoiceproject/parakeet/native/windows-*
 
 .DS_Store

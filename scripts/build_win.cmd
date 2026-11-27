@@ -9,7 +9,7 @@ if "%AARCH%"=="arm64" set "AARCH=aarch64"
 
 set "SOURCE_DIR=src\main\native"
 set "BUILD_DIR=target\native-build"
-set "TARGET_DIR=src\main\resources\native\windows-%AARCH%"
+set "TARGET_DIR=src\main\resources\io\github\jvoiceproject\parakeet\native\windows-%AARCH%"
 
 if not exist "src\main\native\parakeet\CMakeLists.txt" (
     git submodule update --init --recursive

@@ -197,7 +197,7 @@ git submodule update --init --recursive
 
 ### Building the Native Library Locally
 
-Compile `libparakeet` and install it into `src/main/resources/native/`:
+Compile `libparakeet` and install it into `src/main/resources/io/github/jvoiceproject/parakeet/native/`:
 
 - **Linux:** Run `./scripts/build_linux.sh`
 - **macOS:** Run `./scripts/build_macos.sh`
